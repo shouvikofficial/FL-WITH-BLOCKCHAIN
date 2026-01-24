@@ -1,0 +1,16 @@
+Flask
+pandas
+scikit-learn
+joblib
+openpyxl
+gunicorn
+imbalanced-learn
+xgboost
+matplotlib
+seaborn
+shap
+numpy
+scipy
+threadpoolctl
+tqdm
+lime==0.2.0.1

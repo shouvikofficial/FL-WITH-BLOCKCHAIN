@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.env
+
+# ML models (important!)
+*.pkl
+*.pt
+*.h5
