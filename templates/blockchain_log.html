@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchtower - Blockchain Logs</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 2rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        th {
+            background: rgba(99, 102, 241, 0.1);
+            color: #818cf8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+            transition: all 0.2s ease;
+        }
+        td {
+            font-size: 0.95rem;
+            color: #d1d5db;
+        }
+        .hash-cell {
+            font-family: monospace;
+            color: #9ca3af;
+        }
+        .loading-text {
+            text-align: center;
+            padding: 2rem;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="dashboard-container" style="flex-direction: column; max-width: 1000px; margin: 0 auto;">
+        
+        <header class="top-nav glass" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+            <div class="brand" style="display: flex; align-items: center; gap: 1rem;">
+                <div class="logo-circle" style="width: 30px; height: 30px; background: linear-gradient(135deg, #6366f1, #ec4899); border-radius: 50%;"></div>
+                <h2 style="margin:0;">Blockchain Audit Logs</h2>
+            </div>
+            <a href="/" class="outline-btn" style="text-decoration: none;">&larr; Back to Dashboard</a>
+        </header>
+
+        <main class="main-content glass" style="padding: 2rem; width: 100%; box-sizing: border-box; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>On-Chain Transactions</h3>
+                <span class="wallet-badge">Network: Ganache (1337)</span>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Round</th>
+                            <th>Client ID</th>
+                            <th>Timestamp</th>
+                            <th>Model Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-body">
+                        <tr>
+                            <td colspan="4" class="loading-text">Fetching securely from blockchain...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const tbody = document.getElementById('logs-body');
+            try {
+                const res = await fetch('/api/blockchain_logs');
+                const data = await res.json();
+                
+                if (data.success) {
+                    if (data.logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" class="loading-text">No updates logged on the blockchain yet.</td></tr>';
+                    } else {
+                        tbody.innerHTML = '';
+                        // Render in reverse order (newest first)
+                        [...data.logs].reverse().forEach(log => {
+                            const tr = document.createElement('tr');
+                            
+                            // Convert Unix timestamp to readable date
+                            const dateObj = new Date(log.timestamp * 1000);
+                            const dateStr = dateObj.toLocaleString();
+
+                            tr.innerHTML = `
+                                <td>${log.round}</td>
+                                <td style="font-weight:600; color:#fff;">${log.client}</td>
+                                <td>${dateStr}</td>
+                                <td class="hash-cell" title="${log.hash}">${log.hash.substring(0, 16)}...${log.hash.substring(log.hash.length - 8)}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="4" class="loading-text" style="color:#ef4444;">Error: ${data.error}</td></tr>`;
+                }
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="4" class="loading-text" style="color:#ef4444;">Failed to fetch logs from server.</td></tr>';
+            }
+        });
+    </script>
+</body>
+</html>

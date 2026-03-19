@@ -170,4 +170,32 @@ def log_update(
 # ======================================================
 def get_total_updates() -> int:
     """Total number of updates stored on-chain."""
-    return contract.functions.totalUpdates().call()
+    try:
+        if contract is None:
+            return 0
+        return contract.functions.totalUpdates().call()
+    except Exception as e:
+        print(f"❌ Error getting total updates: {e}")
+        return 0
+
+def get_all_updates() -> List[Dict]:
+    """Fetch all stored updates from the blockchain."""
+    try:
+        total = get_total_updates()
+        if total == 0:
+            return []
+            
+        logs = []
+        for i in range(total):
+            # getUpdate returns (string clientId, string modelHash, uint256 timestamp, uint256 roundId)
+            update = contract.functions.getUpdate(i).call()
+            logs.append({
+                "client": update[0],
+                "hash": update[1],
+                "timestamp": update[2],
+                "round": update[3]
+            })
+        return logs
+    except Exception as e:
+        print(f"❌ Error fetching updates: {e}")
+        return []

@@ -10,6 +10,56 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .view-section { display: flex; flex-direction: column; gap: 24px; flex: 1; min-height: 0; }
+        .view-section.hidden { display: none !important; }
+
+        tr:hover td { background: rgba(255, 255, 255, 0.02); }
+        .hash-cell { font-family: monospace; color: #9ca3af; font-size: 0.95rem; }
+
+        .attack-card {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .attack-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: #ef4444;
+            box-shadow: 0 0 15px #ef4444;
+        }
+        .safe-card {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+        }
+        .attacker-badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
+        }
+        .defense-info {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
 </head>
 <body>
     <div class="blob blob-1"></div>
@@ -27,8 +77,15 @@
             <p class="subtitle">Decentralized Federated Learning on Blockchain</p>
 
             <div class="controls">
-                <button id="start-btn" class="glow-btn">Initialize Federation</button>
-                <button id="toggle-terminal-btn" class="outline-btn">Show Terminal Logs</button>
+                <button id="nav-dashboard" class="glow-btn nav-btn active">Dashboard</button>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="start-btn" class="glow-btn" style="background: linear-gradient(135deg, #10b981, #059669); flex: 1; padding: 12px; font-size: 0.9rem;">Start Federation</button>
+                    <button id="stop-btn" class="glow-btn hidden" style="background: linear-gradient(135deg, #ef4444, #b91c1c); flex: 1; padding: 12px; font-size: 0.9rem;">Stop Training</button>
+                </div>
+                <div style="margin-top:20px; text-transform:uppercase; font-size:0.75rem; color:#a1a1aa; letter-spacing:1px; padding-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.1);">Audit Tools</div>
+                <button class="outline-btn nav-btn" data-target="view-terminal" style="margin-top:10px;">Terminal Logs</button>
+                <button class="outline-btn nav-btn" data-target="view-blockchain" style="margin-top:10px;">Blockchain Logs</button>
+                <button class="outline-btn nav-btn" data-target="view-attack" style="margin-top:10px;">Attack Audit</button>
             </div>
 
             <div class="status-box glass">
@@ -57,38 +114,84 @@
                 </div>
             </header>
 
-            <!-- STAT CARDS -->
-            <section class="stats-grid">
-                <div class="stat-card glass">
-                    <h5>Global Accuracy</h5>
-                    <h2 id="metric-acc">0.00%</h2>
-                </div>
-                <div class="stat-card glass">
-                    <h5>F1 Score</h5>
-                    <h2 id="metric-f1">0.00</h2>
-                </div>
-                <div class="stat-card glass">
-                    <h5>ROC-AUC</h5>
-                    <h2 id="metric-roc">0.00</h2>
-                </div>
-                <div class="stat-card glass">
-                    <h5>Precision</h5>
-                    <h2 id="metric-prec">0.00</h2>
-                </div>
-            </section>
-
-            <!-- MAIN CONTENT SPLIT -->
-            <div class="main-split">
-                <!-- CHART AREA -->
-                <section class="chart-container glass">
-                    <canvas id="metricsChart"></canvas>
+            <!-- VIEW: DASHBOARD (Default) -->
+            <div id="view-dashboard" class="view-section">
+                <!-- STAT CARDS -->
+                <section class="stats-grid">
+                    <div class="stat-card glass">
+                        <h5>Global Accuracy</h5>
+                        <h2 id="metric-acc">0.00%</h2>
+                    </div>
+                    <div class="stat-card glass">
+                        <h5>F1 Score</h5>
+                        <h2 id="metric-f1">0.00</h2>
+                    </div>
+                    <div class="stat-card glass">
+                        <h5>ROC-AUC</h5>
+                        <h2 id="metric-roc">0.00</h2>
+                    </div>
+                    <div class="stat-card glass">
+                        <h5>Precision</h5>
+                        <h2 id="metric-prec">0.00</h2>
+                    </div>
                 </section>
 
-                <!-- TERMINAL LOG -->
-                <section id="terminal-pane" class="terminal-container glass hidden">
-                    <div class="terminal-header">Terminal Feed</div>
-                    <pre id="terminal-output">Ready. Click 'Initialize Federation' to begin.</pre>
-                </section>
+                <!-- MAIN CONTENT SPLIT -->
+                <div class="main-split">
+                    <!-- CHART AREA -->
+                    <section class="chart-container glass" style="flex: 1;">
+                        <canvas id="metricsChart"></canvas>
+                    </section>
+                </div>
+            </div>
+
+            <!-- VIEW: TERMINAL -->
+            <div id="view-terminal" class="view-section hidden glass" style="padding: 2rem; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h3>System Terminal Logs</h3>
+                    <span class="wallet-badge">Live Feed</span>
+                </div>
+                
+                <div class="table-container" style="flex: 1; overflow-y: auto; border-radius: 12px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.5rem; display: flex; flex-direction: column;">
+                    <pre id="terminal-output" style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 0.95rem; color: #4ade80; white-space: pre-wrap; line-height: 1.5; flex: 1;">Ready. Click 'Initialize Federation' to begin.</pre>
+                </div>
+            </div>
+
+            <!-- VIEW: BLOCKCHAIN -->
+            <div id="view-blockchain" class="view-section hidden glass" style="padding: 2rem; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h3>On-Chain Transactions</h3>
+                    <span class="wallet-badge">Network: Ganache (1337)</span>
+                </div>
+                
+                <div class="table-container" style="width: 100%; overflow-x: auto; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Round</th>
+                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Client ID</th>
+                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Timestamp</th>
+                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Model Hash</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-body">
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 2rem; color: #9ca3af;">Fetching securely from blockchain...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: ATTACK AUDIT -->
+            <div id="view-attack" class="view-section hidden glass" style="padding: 2.5rem;">
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="color: #fff; margin-bottom: 0.5rem;">Threat Intelligence Report</h3>
+                    <p style="color: #9ca3af; margin-top: 0;">Monitoring federated node behavior for model inversion, poisoning, and Byzantine faults.</p>
+                </div>
+                <div id="audit-content">
+                    <div style="text-align: center; padding: 2rem; color: #9ca3af;">Analyzing federation telemetry...</div>
+                </div>
             </div>
         </main>
     </div>

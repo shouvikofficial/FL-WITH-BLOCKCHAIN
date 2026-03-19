@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchtower - Attack Audit</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .attack-card {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .attack-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: #ef4444;
+            box-shadow: 0 0 15px #ef4444;
+        }
+        .safe-card {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .attacker-badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
+        }
+        .loading-text {
+            color: #9ca3af;
+            text-align: center;
+            padding: 2rem;
+        }
+        .defense-info {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="blob blob-1" style="background: radial-gradient(circle, rgba(239,68,68,0.4) 0%, rgba(0,0,0,0) 70%);"></div>
+    <div class="blob blob-2" style="background: radial-gradient(circle, rgba(16,185,129,0.3) 0%, rgba(0,0,0,0) 70%);"></div>
+
+    <div class="dashboard-container" style="flex-direction: column; max-width: 800px; margin: 0 auto;">
+        
+        <header class="top-nav glass" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+            <div class="brand" style="display: flex; align-items: center; gap: 1rem;">
+                <div class="logo-circle" style="width: 30px; height: 30px; background: linear-gradient(135deg, #ef4444, #f59e0b); border-radius: 50%;"></div>
+                <h2 style="margin:0;">Security & Attack Audit</h2>
+            </div>
+            <a href="/" class="outline-btn" style="text-decoration: none;">&larr; Back to Dashboard</a>
+        </header>
+
+        <main class="main-content glass" style="padding: 2.5rem; width: 100%; box-sizing: border-box;">
+            
+            <div style="margin-bottom: 1rem;">
+                <h3 style="color: #fff; margin-bottom: 0.5rem;">Threat Intelligence Report</h3>
+                <p style="color: #9ca3af; margin-top: 0;">Monitoring federated node behavior for model inversion, poisoning, and Byzantine faults.</p>
+            </div>
+
+            <div id="audit-content">
+                <div class="loading-text">Analyzing federation telemetry...</div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const contentDiv = document.getElementById('audit-content');
+            try {
+                // Fetch from the metrics which contains the malicious attackers list
+                const res = await fetch('/api/metrics');
+                const data = await res.json();
+                
+                if (data.malicious_attackers && data.malicious_attackers.length > 0) {
+                    const attackersHtml = data.malicious_attackers.map(a => `<span class="attacker-badge">⚠️ ${a}</span>`).join('');
+                    
+                    contentDiv.innerHTML = `
+                        <div class="attack-card">
+                            <h4 style="color: #ef4444; margin-top: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                Protocol Violation Detected
+                            </h4>
+                            <p style="color: #d1d5db; margin-bottom: 1.5rem;">Anomalous weight updates deviating drastically from the global distribution were identified.</p>
+                            
+                            <div style="margin-bottom: 1rem;">
+                                <div style="font-size: 0.85rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Identified Hostile Nodes</div>
+                                ${attackersHtml}
+                            </div>
+
+                            <div class="defense-info">
+                                <h5 style="color: #10b981; margin-top: 0;">🛡️ Active Countermeasures</h5>
+                                <p style="color: #a7f3d0; margin-bottom: 0; font-size: 0.95rem;">
+                                    Malicious weight vectors have been isolated and dropped. 
+                                    The global model was securely aggregated using Trimmed Mean / Median Defense algorithms to preserve integrity.
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    if (data.status && data.status.includes('Waiting')) {
+                        contentDiv.innerHTML = `
+                            <div class="safe-card">
+                                <h4 style="color: #9ca3af; margin-top:0;">System Idle</h4>
+                                <p style="color: #6b7280; margin-bottom:0;">Awaiting federation initialization to begin threat monitoring.</p>
+                            </div>
+                        `;
+                    } else {
+                        contentDiv.innerHTML = `
+                            <div class="safe-card">
+                                <svg style="color: #10b981; margin-bottom: 1rem;" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                <h4 style="color: #10b981; margin-top:0;">Zero Threats Detected</h4>
+                                <p style="color: #34d399; margin-bottom:0; font-size: 0.95rem;">All nodes are operating within expected behavioral distribution patterns. Continual monitoring is active.</p>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                contentDiv.innerHTML = '<div class="loading-text" style="color:#ef4444;">Failed to fetch security audit from server.</div>';
+            }
+        });
+    </script>
+</body>
+</html>
