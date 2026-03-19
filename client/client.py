@@ -1,6 +1,9 @@
 import numpy as np
+import sys
+import os
 from sklearn.neural_network import MLPClassifier
 from client.client_preprocessing import local_preprocess
+from security.attack import poison_weights
 
 # ======================================================
 # MLP ARCHITECTURE (must match server.py exactly!)
@@ -68,13 +71,13 @@ def train_local_model(client_id, client_df, global_weights=None, global_scaler=N
     # 6️⃣ EXTRACT ALL LAYER WEIGHTS
     #    Layout: [coef_0, coef_1, coef_2, ic_0, ic_1, ic_2]
     # ------------------------------------------------
-    weights = (
-        [c.copy() for c in model.coefs_] +
-        [ic.copy() for ic in model.intercepts_]
-    )
+    flat_weights = list(model.coefs_) + list(model.intercepts_)
+    
+    # Apply poisoning if this client is the designated attacker
+    flat_weights = poison_weights(client_id, flat_weights)
 
     return {
-        "weights":      weights,
+        "weights":      flat_weights,
         "scaler_stats": scaler_stats,
         "num_samples":  len(X)
     }

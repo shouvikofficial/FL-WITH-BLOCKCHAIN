@@ -1,4 +1,7 @@
 import numpy as np
+import os
+import json
+import sys
 from collections import defaultdict
 from data.data_loader import load_and_split_data
 from client.client import train_local_model
@@ -6,6 +9,17 @@ from blockchain.blockchain import log_update
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from evaluation.metrics import evaluate_model
+from security.defense import aggregate_weights, DEFENSE_METHOD
+
+LOG_FILE = "static/training_log.txt"
+
+def log_print(msg):
+    print(msg)
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(msg + "\n")
+    except Exception:
+        pass
 
 # ======================================================
 # CONFIGURATION
@@ -46,28 +60,9 @@ def detect_attack(weights, global_weights, alpha=3.0):
 
     return score > alpha
 
-
-# ======================================================
-# WEIGHTED FEDERATED AVERAGING (FedAvg — correct formula)
-# ======================================================
-def federated_average(weights_list, sample_counts=None):
-    """
-    Weighted FedAvg: weight each client by its number of training samples.
-    Falls back to uniform mean if sample_counts not provided.
-    """
-    if sample_counts is None or len(sample_counts) != len(weights_list):
-        # Uniform fallback
-        avg = []
-        for layer in zip(*weights_list):
-            avg.append(np.mean(layer, axis=0))
-        return avg
-
-    total = sum(sample_counts)
-    avg = []
-    for layer in zip(*weights_list):
-        weighted = sum(w * (n / total) for w, n in zip(layer, sample_counts))
-        avg.append(weighted)
-    return avg
+# NOTE: The federated_average function was removed.
+# All aggregation logic (FedAvg, Median, Trimmed Mean) is now handled
+# by security.defense.aggregate_weights.
 
 
 # MLP architecture — must match client.py exactly
@@ -139,12 +134,18 @@ def run_federated_learning():
 
     global_weights = None
     global_scaler  = None
+    
+    # 🧹 Clear old log
+    os.makedirs("static", exist_ok=True)
+    with open(LOG_FILE, "w", encoding="utf-8") as f:
+        f.write("System Initialized.\nFederation Starting...\n")
 
     for round_num in range(ROUNDS):
-        print(f"\n🌍 Federated Round {round_num + 1}/{ROUNDS}")
+        log_print(f"\n🌍 Federated Round {round_num + 1}/{ROUNDS}")
 
         malicious_clients.clear()
-        local_weights   = []
+        all_client_updates = [] # Store all updates for potential re-aggregation
+        local_weights   = []    # Filtered weights for aggregation
         scaler_stats_list = []
         sample_counts   = []
 
@@ -152,17 +153,18 @@ def run_federated_learning():
             client_id = f"Client_{i+1}"
 
             client_update = train_local_model(
-                client_id=i + 1,
+                client_id=client_id,    # 🔧 Pass the string (e.g., "Client_3") not an int
                 client_df=client_data[i],
                 global_weights=global_weights,
                 global_scaler=global_scaler
             )
+            all_client_updates.append(client_update)
 
             weights     = client_update["weights"]
             scaler_stats = client_update["scaler_stats"]
             num_samples  = client_update["num_samples"]
 
-            print(f"  [{client_id}] samples={num_samples} | training done")
+            log_print(f"  [{client_id}] samples={num_samples} | training done")
 
             # 🔎 TEMPORAL ATTACK DETECTION (alpha=3.0, 2 consecutive rounds)
             if detect_attack(weights, global_weights):
@@ -171,10 +173,11 @@ def run_federated_learning():
                 suspicion_counter[client_id] = 0
 
             if suspicion_counter[client_id] >= 2:
-                print(f"  ⚠️ CONFIRMED MALICIOUS: {client_id}")
+                log_print(f"  ⚠️ CONFIRMED MALICIOUS: {client_id}")
                 malicious_clients.add(client_id)
 
             # 🔐 Blockchain logging
+            log_print(f"  🔗 LOGGING to Blockchain...")
             log_update(
                 client_id=client_id,
                 weights=weights,
@@ -188,25 +191,26 @@ def run_federated_learning():
                     scaler_stats_list.append(scaler_stats)
                     sample_counts.append(num_samples)
             else:
-                print(f"  🚫 Ignoring weights from malicious {client_id}")
+                log_print(f"  🚫 Ignoring weights from malicious {client_id}")
 
         # 🔧 FAIL-OPEN: if all clients flagged, use all weights
         if not local_weights:
-            print("  ⚠️ All clients flagged. Proceeding with all updates this round.")
-            all_updates = [
-                train_local_model(
-                    client_id=i + 1,
-                    client_df=client_data[i],
-                    global_weights=global_weights,
-                    global_scaler=global_scaler
-                )
-                for i in range(NUM_CLIENTS)
-            ]
-            local_weights = [u["weights"] for u in all_updates]
-            sample_counts = [u["num_samples"] for u in all_updates]
+            log_print("  ⚠️ All clients flagged. Proceeding with all updates this round.")
+            local_weights = [u["weights"] for u in all_client_updates]
+            sample_counts = [u["num_samples"] for u in all_client_updates]
+            scaler_stats_list = [u["scaler_stats"] for u in all_client_updates if u["scaler_stats"] is not None]
 
-        # ✅ WEIGHTED FedAvg (correct formula)
-        global_weights = federated_average(local_weights, sample_counts)
+
+        # 2. Server Aggregation (Robust Defense)
+        # ==========================
+        # Check if an attack was detected in this round based on weight deviance
+        # This check uses the original weights from all clients, not just the filtered ones.
+        attack_detected = any(detect_attack(u["weights"], global_weights) for u in all_client_updates)
+        if attack_detected:
+            log_print(f"  ⚠️ Attack signature detected! Defending via {DEFENSE_METHOD.title()} Aggregation.")
+
+        # Use robust aggregation from defense.py
+        global_weights = aggregate_weights(local_weights, sample_counts=sample_counts)
 
         # Federated scaler (weighted mean/var)
         if scaler_stats_list:
@@ -226,24 +230,64 @@ def run_federated_learning():
         roc_auc_history.append(roc_auc)
         mcc_history.append(mcc)
 
-        print(
+        log_print(
             f"  📊 Round {round_num + 1} → "
             f"Acc={accuracy:.4f}  F1={f1:.4f}  "
-            f"Prec={precision:.4f}  Rec={recall:.4f}  "
-            f"ROC={roc_auc:.4f}  MCC={mcc:.4f}"
+            f"Prec={precision:.4f}  Rec={recall:.4f}"
         )
+
+        # 🌐 EXPORT METRICS FOR WEB DASHBOARD
+        os.makedirs("static", exist_ok=True)
+        try:
+            with open("static/metrics.json", "w") as f:
+                json.dump({
+                    "status": f"Training Round {round_num + 1}...",
+                    "completed": False,
+                    "round": round_num + 1,
+                    "metrics": {
+                        "accuracy": accuracy_history,
+                        "f1": f1_history,
+                        "precision": precision_history,
+                        "recall": recall_history,
+                        "roc": roc_auc_history,
+                        "mcc": mcc_history
+                    },
+                    "malicious_attackers": list(malicious_clients)
+                }, f)
+        except Exception as e:
+            print(f"Failed to write metrics.json: {e}")
 
     # 🔥 FINAL SUMMARY (last 5 rounds average)
     n = min(5, ROUNDS)
-    print(f"\n📈 Final Performance (Average of Last {n} Rounds):")
-    print(f"  Accuracy  : {np.mean(accuracy_history[-n:]):.4f}")
-    print(f"  F1-score  : {np.mean(f1_history[-n:]):.4f}")
-    print(f"  Precision : {np.mean(precision_history[-n:]):.4f}")
-    print(f"  Recall    : {np.mean(recall_history[-n:]):.4f}")
-    print(f"  ROC-AUC   : {np.mean(roc_auc_history[-n:]):.4f}")
-    print(f"  MCC       : {np.mean(mcc_history[-n:]):.4f}")
+    log_print(f"\n📈 Final Performance (Average of Last {n} Rounds):")
+    log_print(f"  Accuracy  : {np.mean(accuracy_history[-n:]):.4f}")
+    log_print(f"  F1-score  : {np.mean(f1_history[-n:]):.4f}")
+    log_print(f"  Precision : {np.mean(precision_history[-n:]):.4f}")
+    log_print(f"  Recall    : {np.mean(recall_history[-n:]):.4f}")
+    log_print(f"  ROC-AUC   : {np.mean(roc_auc_history[-n:]):.4f}")
+    log_print(f"  MCC       : {np.mean(mcc_history[-n:]):.4f}")
 
-    print("\n✅ Federated Learning Completed Successfully")
+    log_print("\n✅ Federated Learning Completed Successfully")
+    
+    # 🌐 FINAL BROADCAST FOR WEB DASHBOARD
+    try:
+        with open("static/metrics.json", "w") as f:
+            json.dump({
+                "status": "Training Completed Successfully ✅",
+                "completed": True,
+                "round": ROUNDS,
+                "metrics": {
+                    "accuracy": accuracy_history,
+                    "f1": f1_history,
+                    "precision": precision_history,
+                    "recall": recall_history,
+                    "roc": roc_auc_history,
+                    "mcc": mcc_history
+                },
+                "malicious_attackers": list(malicious_clients)
+            }, f)
+    except Exception as e:
+        pass
 
 
 # ======================================================

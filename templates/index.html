@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Federated AI Watchtower</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="dashboard-container">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar glass">
+            <div class="brand">
+                <div class="logo-circle"></div>
+                <h2>Watchtower</h2>
+            </div>
+            
+            <p class="subtitle">Decentralized Federated Learning on Blockchain</p>
+
+            <div class="controls">
+                <button id="start-btn" class="glow-btn">Initialize Federation</button>
+                <button id="toggle-terminal-btn" class="outline-btn">Show Terminal Logs</button>
+            </div>
+
+            <div class="status-box glass">
+                <h4>System Status</h4>
+                <div class="indicator">
+                    <span id="pulse" class="pulse-dot"></span>
+                    <span id="status-text">Standby</span>
+                </div>
+            </div>
+
+            <div id="attack-log" class="attack-box glass hidden">
+                <h4>⚠️ Security Alert</h4>
+                <p id="attack-text">No attacks currently detected.</p>
+            </div>
+        </aside>
+
+        <!-- MAIN WINDOW -->
+        <main class="main-content">
+            <header class="top-nav glass">
+                <div class="round-display">
+                    <h3>Round <span id="current-round">0</span> / 25</h3>
+                </div>
+                <div class="network-info">
+                    <span>Chain ID: 1337</span>
+                    <span class="wallet-badge">0x1456...a1B6cbb1</span>
+                </div>
+            </header>
+
+            <!-- STAT CARDS -->
+            <section class="stats-grid">
+                <div class="stat-card glass">
+                    <h5>Global Accuracy</h5>
+                    <h2 id="metric-acc">0.00%</h2>
+                </div>
+                <div class="stat-card glass">
+                    <h5>F1 Score</h5>
+                    <h2 id="metric-f1">0.00</h2>
+                </div>
+                <div class="stat-card glass">
+                    <h5>ROC-AUC</h5>
+                    <h2 id="metric-roc">0.00</h2>
+                </div>
+                <div class="stat-card glass">
+                    <h5>Precision</h5>
+                    <h2 id="metric-prec">0.00</h2>
+                </div>
+            </section>
+
+            <!-- MAIN CONTENT SPLIT -->
+            <div class="main-split">
+                <!-- CHART AREA -->
+                <section class="chart-container glass">
+                    <canvas id="metricsChart"></canvas>
+                </section>
+
+                <!-- TERMINAL LOG -->
+                <section id="terminal-pane" class="terminal-container glass hidden">
+                    <div class="terminal-header">Terminal Feed</div>
+                    <pre id="terminal-output">Ready. Click 'Initialize Federation' to begin.</pre>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
