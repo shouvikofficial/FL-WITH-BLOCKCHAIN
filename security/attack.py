@@ -4,7 +4,7 @@ import numpy as np
 # ATTACK CONFIGURATION
 # ======================================================
 ATTACK_ENABLED = True          # 🔁 Toggle attack ON/OFF
-MALICIOUS_CLIENT_ID = 3        # Client acting as attacker
+MALICIOUS_CLIENT_ID = None     # ❌ No fixed malicious client
 ATTACK_STRENGTH = 8.0          # Noise magnitude
 
 # ======================================================
@@ -14,19 +14,14 @@ def poison_weights(client_id, weights):
     """
     Simulate a malicious client by poisoning model weights.
     This mimics a real-world model update manipulation attack.
+    NOTE:
+    - No client is hard-coded as malicious
+    - Poisoning occurs only if attack is explicitly enabled elsewhere
     """
 
     if not ATTACK_ENABLED:
         return weights
 
-    if client_id != MALICIOUS_CLIENT_ID:
-        return weights
-
-    print("🚨 ATTACK DETECTED: Model poisoning by Client", client_id)
-
-    poisoned_weights = []
-    for w in weights:
-        noise = ATTACK_STRENGTH * np.random.randn(*w.shape)
-        poisoned_weights.append(w + noise)
-
-    return poisoned_weights
+    # ❌ Identity-based poisoning DISABLED
+    # Malicious behavior should come from poisoned DATA, not client ID
+    return weights

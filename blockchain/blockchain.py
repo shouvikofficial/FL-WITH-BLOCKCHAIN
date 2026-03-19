@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 GANACHE_URL = os.getenv("BLOCKCHAIN_RPC", "http://127.0.0.1:7545")
 CONTRACT_ADDRESS = os.getenv(
     "CONTRACT_ADDRESS",
-    "0xF43C15Fca5808D37115E8E96d871D68Bb03DBbe3"
+    "0x145699CAb33EC0f7be2AC1a192AA6785a1B6cbb1"
 )
 
 EXPECTED_CHAIN_ID = int(os.getenv("CHAIN_ID", 1337))
@@ -40,25 +40,35 @@ print(f"✅ Blockchain connected | Chain ID={EXPECTED_CHAIN_ID} | Account={ACCOU
 # ======================================================
 # CONTRACT
 # ======================================================
-ABI = [
-    {
-        "inputs": [
-            {"internalType": "string", "name": "cid", "type": "string"},
-            {"internalType": "string", "name": "h", "type": "string"}
-        ],
-        "name": "logUpdate",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "totalUpdates",
-        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-]
+import json as _json
+import pathlib as _pathlib
+
+# Load ABI from file (keeps blockchain.py clean)
+_ABI_PATH = _pathlib.Path(__file__).parent / "UpdateLogABI.json"
+if _ABI_PATH.exists():
+    with open(_ABI_PATH) as _f:
+        ABI = _json.load(_f)
+else:
+    # Fallback minimal ABI
+    ABI = [
+        {
+            "inputs": [
+                {"internalType": "string", "name": "cid", "type": "string"},
+                {"internalType": "string", "name": "h",   "type": "string"}
+            ],
+            "name": "logUpdate",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "totalUpdates",
+            "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+            "stateMutability": "view",
+            "type": "function"
+        },
+    ]
 
 contract = w3.eth.contract(
     address=Web3.to_checksum_address(CONTRACT_ADDRESS),

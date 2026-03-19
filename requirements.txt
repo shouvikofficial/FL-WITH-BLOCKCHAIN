@@ -14,3 +14,4 @@ scipy
 threadpoolctl
 tqdm
 lime==0.2.0.1
+web3

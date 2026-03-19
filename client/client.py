@@ -1,62 +1,80 @@
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from security.attack import poison_weights
+from sklearn.neural_network import MLPClassifier
+from client.client_preprocessing import local_preprocess
+
+# ======================================================
+# MLP ARCHITECTURE (must match server.py exactly!)
+# ======================================================
+HIDDEN_LAYERS    = (64, 32)   # 🔧 Reverted to original highly-performant architecture
+N_WEIGHT_LAYERS  = len(HIDDEN_LAYERS) + 1   # 3
+
 
 # ======================================================
 # LOCAL CLIENT TRAINING
 # ======================================================
-def train_local_model(client_id, client_data, global_weights=None):
+def train_local_model(client_id, client_df, global_weights=None, global_scaler=None):
     """
-    Train local model on client data.
-    Supports:
-    - Federated initialization
-    - Attack injection
+    Federated MLP client:
+      1. Preprocess local data
+      2. Fit MLP to initialize weight shapes
+      3. Overwrite with global weights (warm-start)
+      4. Continue training (warm_start=True keeps weights)
+      5. Return all layer weights + scaler stats + sample count
     """
 
-    # -------------------------------
-    # Prepare local dataset
-    # -------------------------------
-    X = np.array([x for x, y in client_data], dtype=float)
-    y = np.array([y for x, y in client_data], dtype=int)
-
-    # -------------------------------
-    # Initialize model
-    # -------------------------------
-    model = LogisticRegression(
-        max_iter=300,
-        solver="lbfgs"
+    # ------------------------------------------------
+    # 1️⃣ LOCAL PREPROCESSING
+    # ------------------------------------------------
+    X, y, scaler_stats = local_preprocess(
+        client_df,
+        global_scaler=global_scaler
     )
 
-    # -------------------------------
-    # IMPORTANT: Initialize model correctly
-    # -------------------------------
-    # We must fit once to initialize internal structures
+    # ------------------------------------------------
+    # 2️⃣ MLP INITIALIZATION
+    # ------------------------------------------------
+    model = MLPClassifier(
+        hidden_layer_sizes=HIDDEN_LAYERS,
+        activation="relu",
+        solver="adam",
+        max_iter=200,           # 🔧 Reverted to 200
+        alpha=0.001,
+        warm_start=True,
+        random_state=42,
+        early_stopping=False
+    )
+
+    # ------------------------------------------------
+    # 3️⃣ INITIAL FIT — initializes coefs_ / intercepts_ shapes
+    # ------------------------------------------------
     model.fit(X, y)
 
-    # -------------------------------
-    # Apply global weights (AFTER fit)
-    # -------------------------------
+    # ------------------------------------------------
+    # 4️⃣ LOAD GLOBAL WEIGHTS (warm-start from server)
+    # ------------------------------------------------
     if global_weights is not None:
-        model.coef_ = global_weights[0].copy()
-        model.intercept_ = global_weights[1].copy()
+        try:
+            model.coefs_      = [global_weights[i].copy()                    for i in range(N_WEIGHT_LAYERS)]
+            model.intercepts_ = [global_weights[N_WEIGHT_LAYERS + i].copy() for i in range(N_WEIGHT_LAYERS)]
+        except (IndexError, ValueError):
+            pass   # shape mismatch on first round — safe to ignore
 
-    # -------------------------------
-    # Re-train locally (FL step)
-    # -------------------------------
+    # ------------------------------------------------
+    # 5️⃣ CONTINUE TRAINING (warm_start keeps loaded weights)
+    # ------------------------------------------------
     model.fit(X, y)
 
-    # -------------------------------
-    # Extract weights
-    # -------------------------------
-    weights = [
-        model.coef_.copy(),
-        model.intercept_.copy()
-    ]
+    # ------------------------------------------------
+    # 6️⃣ EXTRACT ALL LAYER WEIGHTS
+    #    Layout: [coef_0, coef_1, coef_2, ic_0, ic_1, ic_2]
+    # ------------------------------------------------
+    weights = (
+        [c.copy() for c in model.coefs_] +
+        [ic.copy() for ic in model.intercepts_]
+    )
 
-    # -------------------------------
-    # 🔥 ATTACK INJECTION HOOK
-    # -------------------------------
-    weights = poison_weights(client_id, weights)
-
-
-    return weights
+    return {
+        "weights":      weights,
+        "scaler_stats": scaler_stats,
+        "num_samples":  len(X)
+    }
