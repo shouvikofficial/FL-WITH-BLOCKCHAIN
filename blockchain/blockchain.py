@@ -178,24 +178,42 @@ def get_total_updates() -> int:
         print(f"❌ Error getting total updates: {e}")
         return 0
 
+_updates_cache = []
+
 def get_all_updates() -> List[Dict]:
-    """Fetch all stored updates from the blockchain."""
+    """Fetch all stored updates from the blockchain using a cache."""
+    global _updates_cache
     try:
         total = get_total_updates()
-        if total == 0:
-            return []
+        if total == len(_updates_cache):
+            return list(_updates_cache)
             
-        logs = []
-        for i in range(total):
-            # getUpdate returns (string clientId, string modelHash, uint256 timestamp, uint256 roundId)
+        raw_logs = w3.eth.get_logs({'fromBlock': 0, 'address': contract.address})
+        events = []
+        for log in raw_logs:
+            try:
+                events.append(contract.events.UpdateLogged().process_log(log))
+            except Exception:
+                pass
+                
+        start_idx = len(_updates_cache)
+        for i in range(start_idx, total):
             update = contract.functions.getUpdate(i).call()
-            logs.append({
+            e = events[i] if i < len(events) else None
+            
+            block_hash = e.blockHash.hex() if e and e.blockHash else "Unknown"
+            tx_hash = e.transactionHash.hex() if e and e.transactionHash else "Unknown"
+            
+            _updates_cache.append({
                 "client": update[0],
                 "hash": update[1],
                 "timestamp": update[2],
-                "round": update[3]
+                "round": update[3],
+                "block_hash": block_hash,
+                "tx_hash": tx_hash
             })
-        return logs
+            
+        return list(_updates_cache)
     except Exception as e:
         print(f"❌ Error fetching updates: {e}")
-        return []
+        return list(_updates_cache)

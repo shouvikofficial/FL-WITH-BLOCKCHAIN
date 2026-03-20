@@ -5,6 +5,14 @@ from flask import Flask, render_template, jsonify, send_from_directory
 
 app = Flask(__name__)
 
+# Register the real distributed FL API routes
+try:
+    from fl_server_api import fl_api
+    app.register_blueprint(fl_api)
+    print("✅ Real distributed FL API registered at /fl/...")
+except Exception as e:
+    print(f"⚠️  FL API not loaded: {e}")
+
 # Ensure static directory exists for the metrics file
 os.makedirs("static", exist_ok=True)
 METRICS_FILE = "static/metrics.json"
@@ -27,35 +35,15 @@ def attack_log():
 @app.route("/api/start", methods=["POST"])
 def start_training():
     """
-    Triggers the Federated Learning script in the background.
-    Resets the metrics JSON first.
+    Initializes the real distributed FL session so real clients can connect.
+    Does NOT run the local simulation (run.py).
     """
-    # Reset metrics file
-    initial_data = {
-        "status": "Starting Initialization...",
-        "round": 0,
-        "total_rounds": 25, # Pull from config ideally, hardcoded 25 for demo
-        "metrics": [],
-        "malicious_attackers": [],
-        "completed": False
-    }
-    with open(METRICS_FILE, "w") as f:
-        json.dump(initial_data, f)
-
-    # Launch in background so we don't block the request
-    # Use python executable from the virtual environment
-    python_exe = os.path.join("venv", "Scripts", "python.exe")
-    if not os.path.exists(python_exe):
-        python_exe = "python" # fallback
-
     try:
-        global training_process
-        if training_process and training_process.poll() is None:
-            return jsonify({"success": False, "error": "Training already in progress."}), 400
-            
-        training_process = subprocess.Popen([python_exe, "run.py"])
-        return jsonify({"success": True, "message": "Federated Learning started natively."})
+        from fl_server_api import reset_fl_session
+        reset_fl_session()
+        return jsonify({"success": True, "message": "Real FL session started. Waiting for clients..."})
     except Exception as e:
+        print(f"⚠️  Could not reset FL state: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/stop", methods=["POST"])

@@ -193,8 +193,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch and Update Logic
     async function fetchMetrics() {
         try {
-            const res = await fetch('/api/metrics');
+            const res = await fetch('/api/metrics?t=' + Date.now());
             const data = await res.json();
+
+            // Auto-start polling if an active session is detected and not already polling
+            if (data.status && !data.status.includes('Waiting') && !data.status.includes('Stopped')) {
+                if (!pollingInterval && !data.completed) {
+                    pollingInterval = setInterval(fetchMetrics, 2000);
+                    startBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                    pulseDot.classList.add('active');
+                }
+            }
 
             // Status updates
             statusText.innerText = data.status || "Syncing...";
@@ -235,6 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateAttackAuditView(data);
             }
 
+            // Also update the Blockchain logs automatically if viewing that tab
+            if (document.getElementById('view-blockchain') && !document.getElementById('view-blockchain').classList.contains('hidden')) {
+                fetchBlockchainLogs();
+            }
+
             // Sync Terminal Stream
             try {
                 const logRes = await fetch('/static/training_log.txt?t=' + Date.now());
@@ -273,8 +288,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Backend fetches
     async function fetchBlockchainLogs() {
         const tbody = document.getElementById('logs-body');
+        // Only show "Fetching" if the table is currently empty or showing the default placeholder
+        if (tbody.children.length === 0 || tbody.innerHTML.includes("No updates") || tbody.innerHTML.includes("Failed")) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:2rem; color:#9ca3af;">Fetching securely from blockchain...</td></tr>';
+        }
         try {
-            const res = await fetch('/api/blockchain_logs');
+            const res = await fetch('/api/blockchain_logs?t=' + Date.now());
             const data = await res.json();
             
             if (data.success) {
@@ -285,11 +304,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     [...data.logs].reverse().forEach(log => {
                         const tr = document.createElement('tr');
                         const dateStr = new Date(log.timestamp * 1000).toLocaleString();
+                        
                         tr.innerHTML = `
                             <td>${log.round}</td>
                             <td style="font-weight:600; color:#fff;">${log.client}</td>
-                            <td>${dateStr}</td>
-                            <td class="hash-cell" title="${log.hash}">${log.hash.substring(0, 16)}...${log.hash.substring(log.hash.length - 8)}</td>
+                            <td style="font-size: 0.8rem; color:#9ca3af;">${dateStr}</td>
+                            <td style="font-size: 0.8rem;">
+                                <div style="margin-bottom:4px;" class="hash-cell" title="Model Hash: ${log.hash}">
+                                    <span style="color:#6366f1;">MH:</span> ${log.hash.substring(0, 10)}...${log.hash.substring(log.hash.length - 6)}
+                                </div>
+                                <div class="hash-cell" title="Block Hash: ${log.block_hash}\nTx Hash: ${log.tx_hash}">
+                                    <span style="color:#eab308;">BH:</span> ${log.block_hash ? log.block_hash.substring(0, 10) + '...' + log.block_hash.substring(log.block_hash.length - 6) : 'Unknown'}
+                                </div>
+                            </td>
                         `;
                         tbody.appendChild(tr);
                     });
