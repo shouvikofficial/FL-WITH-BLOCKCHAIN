@@ -34,6 +34,84 @@ from sklearn.preprocessing import StandardScaler
 HIDDEN_LAYERS   = (64, 32)
 N_WEIGHT_LAYERS = len(HIDDEN_LAYERS) + 1   # 3
 
+# ================================================================
+# TRAINING LOG  — sends events to the server over HTTP
+# ================================================================
+# The server stores events server-side, so the dashboard works even
+# when this client runs on a DIFFERENT PC from the server.
+# ================================================================
+_log_events  = []    # in-memory accumulator (for fallback + terminal)
+_server_url  = None  # set at session start
+_client_id_g = None  # set at session start
+
+def _init_log(client_id, server_url):
+    """Call once at session start to register this client's log channel."""
+    global _log_events, _server_url, _client_id_g
+    _log_events  = []
+    _server_url  = server_url
+    _client_id_g = client_id
+    # Tell the server to create a fresh log for this client
+    try:
+        requests.post(
+            f"{server_url}/api/client_event",
+            json={"client_id": client_id, "reset": True},
+            timeout=5
+        )
+    except Exception:
+        pass  # Server might not be up yet — that's okay
+
+def _emit(event_type, **kwargs):
+    """
+    Send a structured training event to the server (and keep in-memory too).
+    Works whether this client is on the SAME machine or a DIFFERENT PC.
+    """
+    event = {
+        "type":      event_type,
+        "timestamp": time.time(),
+        **kwargs
+    }
+    _log_events.append(event)
+
+    # ── POST to server (works across the network) ──────────────────
+    if _server_url and _client_id_g:
+        try:
+            requests.post(
+                f"{_server_url}/api/client_event",
+                json={"client_id": _client_id_g, "event": event},
+                timeout=5
+            )
+        except Exception:
+            # Non-fatal: if network is down, fall back silently
+            # Also write locally as backup
+            _write_local_fallback()
+
+    # ── Print to terminal for direct feedback ──────────────────────
+    symbols = {
+        "session_start":  "🚀", "data_loaded":    "📦",
+        "preprocess":     "🔬", "round_start":    "🔄",
+        "global_model":   "📡", "training_done":  "🧠",
+        "submit_done":    "📤", "waiting":        "⏳",
+        "round_complete": "✅", "session_end":    "🏁",
+        "error":          "❌",
+    }
+    sym    = symbols.get(event_type, "•")
+    detail = " | ".join(f"{k}={v}" for k, v in kwargs.items())
+    print(f"  {sym} [{event_type}] {detail}", flush=True)
+
+def _write_local_fallback():
+    """Write events to a local file as fallback if server is unreachable."""
+    if not _client_id_g:
+        return
+    safe_id  = _client_id_g.replace("/", "_").replace("\\", "_")
+    log_path = f"static/client_training_log_{safe_id}.json"
+    os.makedirs("static", exist_ok=True)
+    try:
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(_log_events, f)
+    except Exception:
+        pass
+
+
 
 # ================================================================
 # DATA LOADING  (each client has its own local data file)
@@ -55,6 +133,8 @@ def load_local_data(data_path, label_column, client_id, total_clients=3):
         df["heartRate_exang"] = df["heartRate"] * df["exang"]
         df["chol_fbs"]        = df["chol"]      * df["fbs"]
 
+    num_features = len(df.columns) - 1  # exclude label
+
     X_all = df.drop(label_column, axis=1).values
     y_all = df[label_column].values
 
@@ -67,21 +147,76 @@ def load_local_data(data_path, label_column, client_id, total_clients=3):
 
     X = X_all[indices]
     y = y_all[indices]
-    print(f"📦 Loaded {len(X)} local samples for {client_id}")
+
+    # Class distribution
+    unique, counts = np.unique(y, return_counts=True)
+    class_dist = {str(int(k)): int(v) for k, v in zip(unique, counts)}
 
     scaler_stats = {
         "mean": scaler.mean_.tolist(),
         "var":  scaler.var_.tolist(),
         "n":    len(X)
     }
-    return X, y, scaler_stats
+
+    _emit("data_loaded",
+          num_samples=len(X),
+          num_features=int(num_features),
+          label=label_column,
+          class_distribution=class_dist)
+
+    return X, y, scaler_stats, num_features
+
+
+# ================================================================
+# SMOTE (optional, matching server-side logic)
+# ================================================================
+def _apply_smote_if_needed(X, y):
+    """Apply SMOTE if class imbalance > 2.1:1. Returns (X, y, applied: bool)."""
+    try:
+        from collections import Counter
+        counts = Counter(y)
+        if len(counts) > 1:
+            majority = max(counts.values())
+            minority = min(counts.values())
+            if majority / minority >= 2.1:
+                from imblearn.over_sampling import SMOTE
+                X, y = SMOTE(random_state=42).fit_resample(X, y)
+                return X, y, True
+    except Exception:
+        pass
+    return X, y, False
 
 
 # ================================================================
 # LOCAL TRAINING
 # ================================================================
-def train_local(X, y, global_weights=None):
+def train_local(X, y, global_weights=None, round_num=1):
     """Train MLP on local data, warm-starting from global weights."""
+    t_start = time.time()
+
+    # --- Preprocessing ---
+    # Probabilistic poisoning (15% chance, mirrors server-side client.py)
+    poisoning_applied = False
+    if np.random.random() < 0.15:
+        n_poison = int(len(y) * 0.15)
+        if n_poison > 0:
+            idx = np.random.choice(len(y), n_poison, replace=False)
+            y_p = y.copy()
+            y_p[idx] = 1 - y_p[idx]
+            y = y_p
+            poisoning_applied = True
+
+    X, y, smote_applied = _apply_smote_if_needed(X, y)
+
+    scaler_type = "global" if global_weights is not None else "local"
+    _emit("preprocess",
+          round=round_num,
+          scaler_type=scaler_type,
+          smote_applied=smote_applied,
+          poisoning_detected=poisoning_applied,
+          samples_after_smote=int(len(X)))
+
+    # --- Model Training ---
     model = MLPClassifier(
         hidden_layer_sizes=HIDDEN_LAYERS,
         activation="relu",
@@ -103,7 +238,16 @@ def train_local(X, y, global_weights=None):
 
     model.fit(X, y)
 
+    train_acc = float(model.score(X, y))
+    duration  = round(time.time() - t_start, 2)
     flat_weights = list(model.coefs_) + list(model.intercepts_)
+
+    _emit("training_done",
+          round=round_num,
+          local_accuracy=round(train_acc, 4),
+          duration_sec=duration,
+          num_samples=int(len(X)))
+
     return flat_weights
 
 
@@ -119,7 +263,7 @@ def get_global_model(server_url):
             return None
         return [np.array(w) for w in data["weights"]]
     except Exception as e:
-        print(f"❌ Could not fetch global model: {e}")
+        _emit("error", message=f"Could not fetch global model: {e}")
         return None
 
 
@@ -135,13 +279,13 @@ def submit_update(server_url, client_id, round_id, weights, num_samples):
         r = requests.post(f"{server_url}/fl/submit_update", json=payload, timeout=60)
         return r.json()
     except Exception as e:
-        print(f"❌ Could not submit update: {e}")
+        _emit("error", message=f"Could not submit update: {e}")
         return None
 
 
 def wait_for_round(server_url, current_round, timeout=300):
     """Poll until the server moves to the next round."""
-    print(f"  ⏳ Waiting for other clients (round {current_round})...")
+    _emit("waiting", round=current_round)
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
@@ -161,44 +305,70 @@ def wait_for_round(server_url, current_round, timeout=300):
 # MAIN TRAINING LOOP
 # ================================================================
 def run(client_id, server_url, data_path, label_col, total_clients, total_rounds):
+    # Initialise the logging channel — points events to this client's server-side log
+    _init_log(client_id, server_url)
+
     print(f"\n🚀 Starting Federated Client: {client_id}")
     print(f"   Server: {server_url}")
     print(f"   Rounds: {total_rounds}\n")
 
+    _emit("session_start",
+          client_id=client_id,
+          server_url=server_url,
+          total_rounds=total_rounds,
+          total_clients=total_clients,
+          data_path=data_path)
+
     # Load local data once
-    X, y, scaler_stats = load_local_data(data_path, label_col, client_id, total_clients)
+    X, y, scaler_stats, num_features = load_local_data(data_path, label_col, client_id, total_clients)
 
     for rnd in range(1, total_rounds + 1):
         print(f"\n--- Round {rnd}/{total_rounds} ---")
+        _emit("round_start", round=rnd, total_rounds=total_rounds)
 
         # 1. Get global model
         global_weights = get_global_model(server_url)
+        received = global_weights is not None
+        _emit("global_model", round=rnd, received=received)
         if rnd == 1:
-            print(f"  📡 Global model: {'received' if global_weights else 'none (first round)'}")
+            print(f"  📡 Global model: {'received' if received else 'none (first round)'}")
 
-        # 2. Train locally
+        # 2. Train locally (preprocessing happens inside)
         print(f"  🧠 Training locally...")
-        local_weights = train_local(X, y, global_weights)
+        local_weights = train_local(X, y, global_weights, round_num=rnd)
 
         # 3. Submit to server
         print(f"  📤 Submitting update to server...")
         resp = submit_update(server_url, client_id, rnd, local_weights, len(X))
         if resp:
-            print(f"  ✅ Server response: {resp.get('status')} ({resp.get('submitted')}/{resp.get('expected')} clients)")
+            submitted = resp.get("submitted", "?")
+            expected  = resp.get("expected", "?")
+            _emit("submit_done",
+                  round=rnd,
+                  status=resp.get("status"),
+                  submitted=submitted,
+                  expected=expected)
+            print(f"  ✅ Server response: {resp.get('status')} ({submitted}/{expected} clients)")
         else:
+            _emit("error", round=rnd, message="Failed to submit update")
             print(f"  ❌ Failed to submit. Retrying next round...")
             continue
 
         # 4. Wait for aggregation
         result = wait_for_round(server_url, rnd)
         if result == "done":
+            _emit("round_complete", round=rnd, result="all_done")
+            _emit("session_end", status="complete", rounds_done=rnd)
             print("\n🎉 Training complete! All rounds finished.")
             break
         elif result == "timeout":
+            _emit("round_complete", round=rnd, result="timeout")
             print(f"\n⚠️ Timeout waiting for round {rnd}. Moving on...")
         else:
+            _emit("round_complete", round=rnd, result="next_round")
             print(f"  ✅ Round {rnd} aggregated. Moving to round {rnd + 1}.")
 
+    _emit("session_end", status="complete", rounds_done=total_rounds)
     print(f"\n✅ {client_id} finished all rounds. You may close this window.")
 
 

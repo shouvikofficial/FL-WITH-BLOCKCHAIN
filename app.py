@@ -1,7 +1,7 @@
 import os
 import json
 import subprocess
-from flask import Flask, render_template, jsonify, send_from_directory
+from flask import Flask, render_template, jsonify, send_from_directory, request
 
 app = Flask(__name__)
 
@@ -31,6 +31,99 @@ def blockchain_log():
 @app.route("/attack_log")
 def attack_log():
     return render_template("attack_log.html")
+
+@app.route("/client_dashboard")
+def client_dashboard():
+    return render_template("client_dashboard.html")
+
+@app.route("/api/client_event", methods=["POST"])
+def receive_client_event():
+    """
+    REAL DISTRIBUTED USE: called by real_client.py running on a remote PC.
+    Each event is POSTed here and appended server-side to the client's own log file.
+    This means the dashboard can show live data from clients on ANY machine.
+    
+    Body: { "client_id": "Client_1", "event": { "type": "...", "timestamp": ..., ... } }
+    Or for session reset: { "client_id": "Client_1", "reset": true }
+    """
+    data = request.get_json(force=True)
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    client_id = data.get("client_id", "").strip()
+    if not client_id:
+        return jsonify({"error": "Missing client_id"}), 400
+
+    # Sanitise to prevent path traversal
+    safe_id  = client_id.replace("/", "_").replace("\\", "_").replace("..", "_")
+    log_path = f"static/client_training_log_{safe_id}.json"
+    os.makedirs("static", exist_ok=True)
+
+    # Session reset — wipe old log for fresh run
+    if data.get("reset"):
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump([], f)
+        return jsonify({"status": "reset", "client_id": client_id})
+
+    # Append event
+    event = data.get("event")
+    if not event:
+        return jsonify({"error": "Missing event"}), 400
+
+    # Read existing events
+    events = []
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, "r", encoding="utf-8") as f:
+                events = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            events = []
+
+    events.append(event)
+    with open(log_path, "w", encoding="utf-8") as f:
+        json.dump(events, f)
+
+    return jsonify({"status": "ok", "client_id": client_id, "total_events": len(events)})
+
+
+@app.route("/api/client_log", methods=["GET"])
+def get_client_log():
+    """
+    Reads the per-client training log emitted by real_client.py.
+    Requires ?client_id=Client_1  (or whichever client ID)
+    Each client writes its own isolated file: client_training_log_Client_1.json
+    """
+    client_id = request.args.get("client_id", "").strip()
+    if not client_id:
+        return jsonify({"events": [], "status": "missing_client_id",
+                        "error": "Pass ?client_id=Client_1 in the URL"}), 400
+
+    # Sanitise to prevent path traversal
+    safe_id   = client_id.replace("/", "_").replace("\\", "_").replace("..", "_")
+    log_path  = f"static/client_training_log_{safe_id}.json"
+
+    if not os.path.exists(log_path):
+        return jsonify({"events": [], "status": "no_session",
+                        "client_id": client_id})
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            events = json.load(f)
+        return jsonify({"events": events, "status": "ok", "client_id": client_id})
+    except (json.JSONDecodeError, IOError):
+        return jsonify({"events": [], "status": "reading", "client_id": client_id})
+
+@app.route("/api/client_sessions", methods=["GET"])
+def list_client_sessions():
+    """Return a list of client IDs that have active log files in static/."""
+    import glob
+    files = glob.glob("static/client_training_log_*.json")
+    client_ids = []
+    for f in files:
+        name = os.path.basename(f)       # client_training_log_Client_1.json
+        cid  = name[len("client_training_log_"):-len(".json")]
+        client_ids.append(cid)
+    return jsonify({"clients": sorted(client_ids)})
+
 
 @app.route("/api/start", methods=["POST"])
 def start_training():
