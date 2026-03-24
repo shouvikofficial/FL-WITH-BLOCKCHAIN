@@ -140,8 +140,10 @@ def log_update(
         }
 
     try:
+        # Encode real FL round into payload so it survives across training runs
+        payload = f"round={round_id}|{model_hash}"
         tx_hash = _send_tx(
-            contract.functions.logUpdate(client_id, model_hash)
+            contract.functions.logUpdate(client_id, payload)
         )
 
         block_number = None
@@ -204,11 +206,24 @@ def get_all_updates() -> List[Dict]:
             block_hash = e.blockHash.hex() if e and e.blockHash else "Unknown"
             tx_hash = e.transactionHash.hex() if e and e.transactionHash else "Unknown"
             
+            # Parse the encoded payload: "round={n}|{model_hash}"
+            stored = update[1]
+            if stored.startswith("round=") and "|" in stored:
+                parts = stored.split("|", 1)
+                try:
+                    fl_round = int(parts[0].replace("round=", ""))
+                except ValueError:
+                    fl_round = update[3]
+                actual_hash = parts[1]
+            else:
+                fl_round = update[3]  # fallback for old entries
+                actual_hash = stored
+            
             _updates_cache.append({
                 "client": update[0],
-                "hash": update[1],
+                "hash": actual_hash,
                 "timestamp": update[2],
-                "round": update[3],
+                "round": fl_round,
                 "block_hash": block_hash,
                 "tx_hash": tx_hash
             })
