@@ -65,9 +65,9 @@ const gradAcc = ctx.createLinearGradient(0, 0, 0, 220);
 gradAcc.addColorStop(0, 'rgba(245, 158, 11, 0.4)');
 gradAcc.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
 
-const gradTime = ctx.createLinearGradient(0, 0, 0, 220);
-gradTime.addColorStop(0, 'rgba(20, 184, 166, 0.35)');
-gradTime.addColorStop(1, 'rgba(20, 184, 166, 0.0)');
+const gradF1 = ctx.createLinearGradient(0, 0, 0, 220);
+gradF1.addColorStop(0, 'rgba(167, 139, 250, 0.35)');
+gradF1.addColorStop(1, 'rgba(167, 139, 250, 0.0)');
 
 const chart = new Chart(ctx, {
     type: 'line',
@@ -75,7 +75,7 @@ const chart = new Chart(ctx, {
         labels: [],
         datasets: [
             {
-                label: 'Local Accuracy',
+                label: 'Val Accuracy',
                 data: [],
                 borderColor: '#f59e0b',
                 backgroundColor: gradAcc,
@@ -88,17 +88,17 @@ const chart = new Chart(ctx, {
                 yAxisID: 'yAcc'
             },
             {
-                label: 'Train Duration (s)',
+                label: 'F1 Score',
                 data: [],
-                borderColor: '#14b8a6',
-                backgroundColor: gradTime,
+                borderColor: '#a78bfa',
+                backgroundColor: gradF1,
                 borderWidth: 2,
                 pointBackgroundColor: '#fff',
-                pointBorderColor: '#14b8a6',
+                pointBorderColor: '#a78bfa',
                 pointRadius: 4,
                 fill: true,
                 tension: 0.4,
-                yAxisID: 'yTime'
+                yAxisID: 'yAcc'
             }
         ]
     },
@@ -110,6 +110,11 @@ const chart = new Chart(ctx, {
             legend: {
                 position: 'top',
                 labels: { boxWidth: 10, padding: 16, font: { size: 11 } }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y * 100).toFixed(2)}%`
+                }
             }
         },
         scales: {
@@ -117,16 +122,9 @@ const chart = new Chart(ctx, {
                 type: 'linear',
                 position: 'left',
                 min: 0, max: 1,
-                title: { display: true, text: 'Accuracy', color: '#f59e0b', font: { size: 10 } },
+                title: { display: true, text: 'Score', color: '#f59e0b', font: { size: 10 } },
                 grid: { color: 'rgba(255,255,255,0.04)' },
                 ticks: { callback: v => (v * 100).toFixed(0) + '%', font: { size: 10 } }
-            },
-            yTime: {
-                type: 'linear',
-                position: 'right',
-                title: { display: true, text: 'Duration (s)', color: '#14b8a6', font: { size: 10 } },
-                grid: { display: false },
-                ticks: { font: { size: 10 } }
             },
             x: {
                 grid: { display: false },
@@ -145,22 +143,28 @@ let derivedState = {
     serverUrl:    null,
     totalRounds:  null,
     currentRound: 0,
-    phase:        'idle',   // idle | loading | training | waiting | complete | error
+    phase:        'idle',
     samples:      null,
     features:     null,
-    // Latest preprocess values
-    scalerType: null,
-    smote:      null,
-    poison:     null,
-    classDist:  null,
+    scalerType:   null,
+    smote:        null,
+    poison:       null,
+    classDist:    null,
     samplesSMOTE: null,
-    // Latest training values
-    localAcc: null,
-    duration: null,
+    // Latest training metrics
+    localAcc:   null,
+    trainAcc:   null,
+    f1:         null,
+    precision:  null,
+    recall:     null,
+    rocAuc:     null,
+    nIter:      null,
+    duration:   null,
     // Chart data
-    accData:  [],
-    timeData: [],
+    accData: [],
+    f1Data:  [],
 };
+
 
 const EVENT_SYMBOLS = {
     session_start:  ['🚀', 'session_start'],
@@ -239,14 +243,19 @@ function processEvents(events) {
                 break;
 
             case 'training_done':
-                derivedState.localAcc = ev.local_accuracy;
-                derivedState.duration = ev.duration_sec;
-                // Chart
+                derivedState.localAcc  = ev.local_accuracy;
+                derivedState.trainAcc  = ev.train_accuracy;
+                derivedState.f1        = ev.f1_score;
+                derivedState.precision = ev.precision;
+                derivedState.recall    = ev.recall;
+                derivedState.rocAuc    = ev.roc_auc;
+                derivedState.nIter     = ev.n_iter;
+                derivedState.duration  = ev.duration_sec;
                 const lbl = `Rnd ${ev.round}`;
                 if (!chart.data.labels.includes(lbl)) {
                     chart.data.labels.push(lbl);
                     derivedState.accData.push(ev.local_accuracy);
-                    derivedState.timeData.push(ev.duration_sec);
+                    derivedState.f1Data.push(ev.f1_score ?? ev.local_accuracy);
                 }
                 break;
 
@@ -306,7 +315,12 @@ function renderUI() {
         document.getElementById('sc-samples').textContent = s.samples.toLocaleString();
     }
     if (s.features !== null) document.getElementById('sc-features').textContent = s.features;
-    if (s.localAcc !== null) document.getElementById('sc-acc').textContent = (s.localAcc * 100).toFixed(2) + '%';
+    if (s.localAcc !== null) {
+        const pct = (s.localAcc * 100).toFixed(2) + '%';
+        const f1Txt = s.f1 !== null ? ` · F1: ${(s.f1*100).toFixed(1)}%` : '';
+        document.getElementById('sc-acc').textContent = pct;
+        document.getElementById('sc-acc').title = `Val Acc: ${pct}${f1Txt}`;
+    }
     if (s.duration !== null) document.getElementById('sc-time').textContent = s.duration + 's';
 
     // Preprocessing panel
@@ -317,7 +331,7 @@ function renderUI() {
 
     // Chart
     chart.data.datasets[0].data = derivedState.accData;
-    chart.data.datasets[1].data = derivedState.timeData;
+    chart.data.datasets[1].data = derivedState.f1Data;
     chart.update('none');
 
     // Connection status
@@ -450,8 +464,11 @@ function renderStepper(s) {
             `${s.scalerType} scaler · SMOTE: ${s.smote ? 'Yes' : 'No'} · Poison: ${s.poison ? 'Yes' : 'No'}`;
     }
     if (s.localAcc !== null) {
+        const f1txt  = s.f1   !== null ? ` · F1: ${(s.f1*100).toFixed(2)}%`    : '';
+        const rottxt = s.rocAuc !== null ? ` · AUC: ${(s.rocAuc*100).toFixed(2)}%` : '';
+        const itertxt = s.nIter !== null ? ` · iters: ${s.nIter}` : '';
         document.getElementById('step-detail-train').textContent =
-            `Acc: ${(s.localAcc * 100).toFixed(2)}% · ${s.duration}s`;
+            `Val: ${(s.localAcc*100).toFixed(2)}%${f1txt}${rottxt} · ${s.duration}s${itertxt}`;
     }
     if (s.phase === 'complete') {
         document.getElementById('step-detail-wait').textContent = 'Aggregation complete ✓';
@@ -492,8 +509,14 @@ function formatEventMsg(ev) {
             return `Round ${ev.round} / ${ev.total_rounds} started`;
         case 'global_model':
             return `Global model ${ev.received ? 'received ✓' : 'not yet available (round 1)'}`;
-        case 'training_done':
-            return `Training complete · acc: ${(ev.local_accuracy * 100).toFixed(2)}% · ${ev.duration_sec}s`;
+        case 'training_done': {
+            const acc  = (ev.local_accuracy * 100).toFixed(2);
+            const tacc = ev.train_accuracy ? ` · Train: ${(ev.train_accuracy*100).toFixed(2)}%` : '';
+            const f1   = ev.f1_score   !== undefined && ev.f1_score !== null   ? ` · F1: ${(ev.f1_score*100).toFixed(2)}%`   : '';
+            const auc  = ev.roc_auc    !== undefined && ev.roc_auc  !== null   ? ` · AUC: ${(ev.roc_auc*100).toFixed(2)}%`   : '';
+            const itr  = ev.n_iter     !== undefined ? ` · ${ev.n_iter} iters` : '';
+            return `Val Acc: ${acc}%${tacc}${f1}${auc} · ${ev.duration_sec}s${itr}`;
+        }
         case 'submit_done':
             return `Submitted · status: ${ev.status} · ${ev.submitted}/${ev.expected} clients ready`;
         case 'waiting':

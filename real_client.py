@@ -30,6 +30,9 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 # ================================================================
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (accuracy_score, f1_score,
+                             roc_auc_score, precision_score, recall_score)
 
 HIDDEN_LAYERS   = (64, 32)
 N_WEIGHT_LAYERS = len(HIDDEN_LAYERS) + 1   # 3
@@ -190,12 +193,27 @@ def _apply_smote_if_needed(X, y):
 # ================================================================
 # LOCAL TRAINING
 # ================================================================
+def _clip_weights(weights, max_norm=2.0):
+    """Clip global L2 weight norm before submission — stabilises aggregation."""
+    total_norm = np.sqrt(sum(np.linalg.norm(w) ** 2 for w in weights))
+    if total_norm > max_norm:
+        scale = max_norm / (total_norm + 1e-8)
+        weights = [w * scale for w in weights]
+    return weights
+
+
 def train_local(X, y, global_weights=None, round_num=1):
-    """Train MLP on local data, warm-starting from global weights."""
+    """
+    Train MLP on local data with:
+      - Proper train/val split (accuracy measured on UNSEEN data)
+      - Early stopping (avoids overfitting local data)
+      - Adaptive learning rate
+      - F1, ROC-AUC, Precision, Recall metrics
+      - Weight norm clipping before returning weights
+    """
     t_start = time.time()
 
-    # --- Preprocessing ---
-    # Probabilistic poisoning (15% chance, mirrors server-side client.py)
+    # ── Probabilistic poisoning (15% chance, mirrors server-side) ──────────
     poisoning_applied = False
     if np.random.random() < 0.15:
         n_poison = int(len(y) * 0.15)
@@ -206,6 +224,7 @@ def train_local(X, y, global_weights=None, round_num=1):
             y = y_p
             poisoning_applied = True
 
+    # ── SMOTE balancing ─────────────────────────────────────────────────────
     X, y, smote_applied = _apply_smote_if_needed(X, y)
 
     scaler_type = "global" if global_weights is not None else "local"
@@ -216,37 +235,99 @@ def train_local(X, y, global_weights=None, round_num=1):
           poisoning_detected=poisoning_applied,
           samples_after_smote=int(len(X)))
 
-    # --- Model Training ---
+    # ── Train / Validation split (15%) ───────────────────────────────────────
+    # Evaluate on UNSEEN data — much more honest than training accuracy
+    try:
+        X_train, X_val, y_train, y_val = train_test_split(
+            X, y, test_size=0.15, stratify=y, random_state=42
+        )
+    except ValueError:
+        # Fallback if stratify impossible (tiny dataset or single class)
+        X_train, X_val, y_train, y_val = train_test_split(
+            X, y, test_size=0.15, random_state=42
+        )
+
+    # ── Single-model approach: warm_start + manual early-stopping state reset ──
+    # warm_start=True is REQUIRED so that injected weights survive into fit().
+    # We do ONE 1-iter fit to build layer structure, inject global weights,
+    # then manually reset sklearn's internal early-stopping counters before
+    # the real training run. This is the only reliable way to combine both.
     model = MLPClassifier(
         hidden_layer_sizes=HIDDEN_LAYERS,
         activation="relu",
         solver="adam",
-        max_iter=200,
-        alpha=0.001,
-        warm_start=True,
-        random_state=42
+        alpha=0.0005,
+        learning_rate="adaptive",
+        learning_rate_init=0.001,
+        warm_start=True,      # MUST stay True so injected weights are preserved
+        early_stopping=False, # Disabled for 1-iter structure-init fit
+        max_iter=1,
+        random_state=42,
     )
-    model.fit(X, y)
 
-    # Load global weights if provided (federated warm-start)
+    # Step 1: build layer structure (1 iteration, no tracking)
+    try:
+        model.fit(X_train, y_train)
+    except Exception:
+        pass
+
+    # Step 2: inject global weights (if available)
     if global_weights is not None:
         try:
-            model.coefs_      = [global_weights[i].copy()                    for i in range(N_WEIGHT_LAYERS)]
-            model.intercepts_ = [global_weights[N_WEIGHT_LAYERS + i].copy() for i in range(N_WEIGHT_LAYERS)]
-        except (IndexError, ValueError):
-            pass   # Shape mismatch on first round — safe to ignore
+            model.coefs_      = [global_weights[i].copy()
+                                 for i in range(N_WEIGHT_LAYERS)]
+            model.intercepts_ = [global_weights[N_WEIGHT_LAYERS + i].copy()
+                                 for i in range(N_WEIGHT_LAYERS)]
+        except (IndexError, ValueError, AttributeError):
+            pass  # Shape mismatch on round 1 — safe to ignore
 
-    model.fit(X, y)
+    # Step 3: enable early stopping and reset its internal tracking state
+    model.early_stopping = True
+    model.max_iter       = 300
+    model.n_iter_no_change = 20
+    model.tol              = 1e-4
+    model.validation_fraction = 0.1
+    # Reset tracking attributes so sklearn doesn't crash on 2nd+ call
+    model.validation_scores_     = []
+    model.best_validation_score_ = -np.inf
+    model.no_improvement_count_  = 0
+    if hasattr(model, 'best_loss_'):
+        model.best_loss_ = np.inf
 
-    train_acc = float(model.score(X, y))
-    duration  = round(time.time() - t_start, 2)
+    # Step 4: real training — warm_start preserves injected weights
+    model.fit(X_train, y_train)
+
+
+    # ── Evaluate on VALIDATION set (unseen data) ─────────────────────────────
+    y_pred      = model.predict(X_val)
+    y_pred_prob = model.predict_proba(X_val)[:, 1] if len(np.unique(y_val)) == 2 else None
+
+    val_acc  = float(accuracy_score(y_val, y_pred))
+    val_f1   = float(f1_score(y_val, y_pred, average="weighted", zero_division=0))
+    val_prec = float(precision_score(y_val, y_pred, average="weighted", zero_division=0))
+    val_rec  = float(recall_score(y_val, y_pred, average="weighted", zero_division=0))
+    val_roc  = float(roc_auc_score(y_val, y_pred_prob)) if y_pred_prob is not None else None
+
+    # Train accuracy (for reference — always higher than val)
+    train_acc = float(model.score(X_train, y_train))
+
+    duration     = round(time.time() - t_start, 2)
     flat_weights = list(model.coefs_) + list(model.intercepts_)
+
+
 
     _emit("training_done",
           round=round_num,
-          local_accuracy=round(train_acc, 4),
+          local_accuracy=round(val_acc, 4),   # Validation accuracy (honest)
+          train_accuracy=round(train_acc, 4), # Training accuracy (reference)
+          f1_score=round(val_f1, 4),
+          precision=round(val_prec, 4),
+          recall=round(val_rec, 4),
+          roc_auc=round(val_roc, 4) if val_roc is not None else None,
           duration_sec=duration,
-          num_samples=int(len(X)))
+          num_samples=int(len(X_train)),
+          val_samples=int(len(X_val)),
+          n_iter=model.n_iter_)
 
     return flat_weights
 

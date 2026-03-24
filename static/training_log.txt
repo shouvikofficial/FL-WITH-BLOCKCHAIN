@@ -1,153 +1,153 @@
 🚀 Real Distributed FL Session Started
+  📥 Received update from Client_3 (1/3)
+  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_2 (3/3)
+
+🌍 Aggregating Round 1/25
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
+  📊 Round 1 → Acc=0.7050  F1=0.3924  Prec=0.2857  Rec=0.6264
+  ✅ Round 1 done. Next: Round 2
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_3 (2/3)
+  📥 Received update from Client_2 (3/3)
+
+🌍 Aggregating Round 2/25
+  🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
+  📊 Round 2 → Acc=0.7104  F1=0.3992  Prec=0.2916  Rec=0.6326
+  ✅ Round 2 done. Next: Round 3
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_3 (2/3)
+  📥 Received update from Client_2 (3/3)
+
+🌍 Aggregating Round 3/25
+  🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
+  📊 Round 3 → Acc=0.7085  F1=0.4170  Prec=0.2997  Rec=0.6853
+  ✅ Round 3 done. Next: Round 4
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_3 (2/3)
+  📥 Received update from Client_2 (3/3)
+
+🌍 Aggregating Round 4/25
+  🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
+  📊 Round 4 → Acc=0.7519  F1=0.4654  Prec=0.3462  Rec=0.7101
+  ✅ Round 4 done. Next: Round 5
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_3 (2/3)
+  📥 Received update from Client_2 (3/3)
+
+🌍 Aggregating Round 5/25
+  🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
+  📊 Round 5 → Acc=0.7974  F1=0.4896  Prec=0.3969  Rec=0.6388
+  ✅ Round 5 done. Next: Round 6
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_3 (2/3)
+  📥 Received update from Client_2 (3/3)
+
+🌍 Aggregating Round 6/25
+  🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
+  📊 Round 6 → Acc=0.8054  F1=0.5051  Prec=0.4119  Rec=0.6527
+  ✅ Round 6 done. Next: Round 7
   📥 Received update from Client_1 (1/3)
   📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
-🌍 Aggregating Round 1/25
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_2 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
-  📊 Round 1 → Acc=0.7009  F1=0.3563  Prec=0.2649  Rec=0.5442
-  ✅ Round 1 done. Next: Round 2
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
-  📥 Received update from Client_3 (3/3)
-
-🌍 Aggregating Round 2/25
-  🔗 Logging Client_2 to Blockchain...
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
-  📊 Round 2 → Acc=0.7323  F1=0.4140  Prec=0.3104  Rec=0.6217
-  ✅ Round 2 done. Next: Round 3
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
-  📥 Received update from Client_3 (3/3)
-
-🌍 Aggregating Round 3/25
-  🔗 Logging Client_2 to Blockchain...
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
-  📊 Round 3 → Acc=0.7587  F1=0.4443  Prec=0.3420  Rec=0.6341
-  ✅ Round 3 done. Next: Round 4
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
-  📥 Received update from Client_3 (3/3)
-
-🌍 Aggregating Round 4/25
-  🔗 Logging Client_2 to Blockchain...
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
-  📊 Round 4 → Acc=0.7542  F1=0.4481  Prec=0.3403  Rec=0.6558
-  ✅ Round 4 done. Next: Round 5
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
-  📥 Received update from Client_3 (3/3)
-
-🌍 Aggregating Round 5/25
-  🔗 Logging Client_2 to Blockchain...
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
-  📊 Round 5 → Acc=0.7988  F1=0.4962  Prec=0.4008  Rec=0.6512
-  ✅ Round 5 done. Next: Round 6
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
-  📥 Received update from Client_3 (3/3)
-
-🌍 Aggregating Round 6/25
-  🔗 Logging Client_2 to Blockchain...
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
-  📊 Round 6 → Acc=0.8012  F1=0.5044  Prec=0.4062  Rec=0.6651
-  ✅ Round 6 done. Next: Round 7
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
-  📥 Received update from Client_3 (3/3)
-
 🌍 Aggregating Round 7/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 7 → Acc=0.8040  F1=0.5132  Prec=0.4124  Rec=0.6791
+  📊 Round 7 → Acc=0.7991  F1=0.5092  Prec=0.4051  Rec=0.6853
   ✅ Round 7 done. Next: Round 8
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 8/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 8 → Acc=0.8153  F1=0.5314  Prec=0.4327  Rec=0.6884
+  📊 Round 8 → Acc=0.8314  F1=0.5336  Prec=0.4606  Rec=0.6341
   ✅ Round 8 done. Next: Round 9
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 9/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 9 → Acc=0.8059  F1=0.5229  Prec=0.4176  Rec=0.6992
+  📊 Round 9 → Acc=0.8231  F1=0.5324  Prec=0.4453  Rec=0.6620
   ✅ Round 9 done. Next: Round 10
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 10/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 10 → Acc=0.7962  F1=0.5237  Prec=0.4063  Rec=0.7364
+  📊 Round 10 → Acc=0.8257  F1=0.5390  Prec=0.4509  Rec=0.6698
   ✅ Round 10 done. Next: Round 11
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 11/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 11 → Acc=0.8347  F1=0.5560  Prec=0.4700  Rec=0.6806
+  📊 Round 11 → Acc=0.7960  F1=0.5170  Prec=0.4040  Rec=0.7178
   ✅ Round 11 done. Next: Round 12
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 12/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 12 → Acc=0.8071  F1=0.5445  Prec=0.4248  Rec=0.7581
+  📊 Round 12 → Acc=0.7896  F1=0.5094  Prec=0.3947  Rec=0.7178
   ✅ Round 12 done. Next: Round 13
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 13/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 13 → Acc=0.8090  F1=0.5429  Prec=0.4268  Rec=0.7457
+  📊 Round 13 → Acc=0.8337  F1=0.5585  Prec=0.4685  Rec=0.6915
   ✅ Round 13 done. Next: Round 14
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 14/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 14 → Acc=0.8432  F1=0.5772  Prec=0.4892  Rec=0.7039
+  📊 Round 14 → Acc=0.8342  F1=0.5587  Prec=0.4694  Rec=0.6899
   ✅ Round 14 done. Next: Round 15
-  📥 Received update from Client_2 (1/3)
-  📥 Received update from Client_1 (2/3)
+  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (2/3)
   📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 15/25
-  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_1 to Blockchain...
+  🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 15 → Acc=0.8422  F1=0.5847  Prec=0.4876  Rec=0.7302
+  📊 Round 15 → Acc=0.8380  F1=0.5644  Prec=0.4775  Rec=0.6899
   ✅ Round 15 done. Next: Round 16
   📥 Received update from Client_1 (1/3)
   📥 Received update from Client_2 (2/3)
@@ -157,7 +157,7 @@
   🔗 Logging Client_1 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 16 → Acc=0.8432  F1=0.5908  Prec=0.4898  Rec=0.7442
+  📊 Round 16 → Acc=0.8450  F1=0.5720  Prec=0.4933  Rec=0.6806
   ✅ Round 16 done. Next: Round 17
   📥 Received update from Client_1 (1/3)
   📥 Received update from Client_2 (2/3)
@@ -167,86 +167,86 @@
   🔗 Logging Client_1 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
   🔗 Logging Client_3 to Blockchain...
-  📊 Round 17 → Acc=0.8330  F1=0.5709  Prec=0.4687  Rec=0.7302
+  📊 Round 17 → Acc=0.8363  F1=0.5663  Prec=0.4743  Rec=0.7023
   ✅ Round 17 done. Next: Round 18
   📥 Received update from Client_1 (1/3)
-  📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_2 (2/3)
+  📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 18/25
   🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 18 → Acc=0.8193  F1=0.5653  Prec=0.4458  Rec=0.7721
+  🔗 Logging Client_3 to Blockchain...
+  📊 Round 18 → Acc=0.8474  F1=0.5757  Prec=0.4989  Rec=0.6806
   ✅ Round 18 done. Next: Round 19
   📥 Received update from Client_1 (1/3)
-  📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_2 (2/3)
+  📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 19/25
   🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 19 → Acc=0.8533  F1=0.6033  Prec=0.5125  Rec=0.7333
+  🔗 Logging Client_3 to Blockchain...
+  📊 Round 19 → Acc=0.7634  F1=0.4972  Prec=0.3674  Rec=0.7690
   ✅ Round 19 done. Next: Round 20
   📥 Received update from Client_1 (1/3)
-  📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_2 (2/3)
+  📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 20/25
   🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 20 → Acc=0.8505  F1=0.6047  Prec=0.5057  Rec=0.7519
+  🔗 Logging Client_3 to Blockchain...
+  📊 Round 20 → Acc=0.8479  F1=0.0000  Prec=0.0000  Rec=0.0000
   ✅ Round 20 done. Next: Round 21
   📥 Received update from Client_1 (1/3)
-  📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_2 (2/3)
+  📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 21/25
   🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 21 → Acc=0.8248  F1=0.5856  Prec=0.4573  Rec=0.8140
+  🔗 Logging Client_3 to Blockchain...
+  📊 Round 21 → Acc=0.8651  F1=0.6022  Prec=0.5460  Rec=0.6713
   ✅ Round 21 done. Next: Round 22
   📥 Received update from Client_1 (1/3)
-  📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_2 (2/3)
+  📥 Received update from Client_3 (3/3)
 
 🌍 Aggregating Round 22/25
   🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 22 → Acc=0.8425  F1=0.5927  Prec=0.4884  Rec=0.7535
+  🔗 Logging Client_3 to Blockchain...
+  📊 Round 22 → Acc=0.8646  F1=0.6036  Prec=0.5442  Rec=0.6775
   ✅ Round 22 done. Next: Round 23
-  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (1/3)
   📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_1 (3/3)
 
 🌍 Aggregating Round 23/25
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 23 → Acc=0.8592  F1=0.6200  Prec=0.5259  Rec=0.7550
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_1 to Blockchain...
+  📊 Round 23 → Acc=0.8429  F1=0.5827  Prec=0.4890  Rec=0.7209
   ✅ Round 23 done. Next: Round 24
-  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (1/3)
   📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_1 (3/3)
 
 🌍 Aggregating Round 24/25
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 24 → Acc=0.8616  F1=0.6201  Prec=0.5322  Rec=0.7426
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_1 to Blockchain...
+  📊 Round 24 → Acc=0.8550  F1=0.5903  Prec=0.5175  Rec=0.6868
   ✅ Round 24 done. Next: Round 25
-  📥 Received update from Client_1 (1/3)
+  📥 Received update from Client_2 (1/3)
   📥 Received update from Client_3 (2/3)
-  📥 Received update from Client_2 (3/3)
+  📥 Received update from Client_1 (3/3)
 
 🌍 Aggregating Round 25/25
-  🔗 Logging Client_1 to Blockchain...
-  🔗 Logging Client_3 to Blockchain...
   🔗 Logging Client_2 to Blockchain...
-  📊 Round 25 → Acc=0.8623  F1=0.6232  Prec=0.5337  Rec=0.7488
+  🔗 Logging Client_3 to Blockchain...
+  🔗 Logging Client_1 to Blockchain...
+  📊 Round 25 → Acc=0.8590  F1=0.6086  Prec=0.5266  Rec=0.7209
 
 ✅ All rounds complete!
