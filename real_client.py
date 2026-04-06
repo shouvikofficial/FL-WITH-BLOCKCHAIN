@@ -450,6 +450,59 @@ def run(client_id, server_url, data_path, label_col, total_clients, total_rounds
         result = wait_for_round(server_url, rnd)
         if result == "done":
             _emit("round_complete", round=rnd, result="all_done")
+            
+            # 🎯 Phase 2: Personalized Federated Learning (PFL)
+            print(f"\n🎯 Initiating Personalized Federated Learning (PFL) Phase...")
+            
+            final_global_weights = get_global_model(server_url)
+            if final_global_weights:
+                try:
+                    from sklearn.neural_network import MLPClassifier
+                    from sklearn.metrics import accuracy_score
+                    from sklearn.model_selection import train_test_split
+                    import joblib
+                    
+                    # Split data for honest evaluation
+                    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.15, stratify=y, random_state=42)
+                    
+                    # 1. Reconstruct Baseline Global Model
+                    baseline_model = MLPClassifier(hidden_layer_sizes=(128, 64, 32), max_iter=1, warm_start=True, random_state=42)
+                    baseline_model.fit(X_train[:10], y_train[:10]) # Dummy fit to initialize layer shapes
+                    
+                    # Inject global weights
+                    N_LAYERS = len(baseline_model.coefs_)
+                    baseline_model.coefs_ = [final_global_weights[i].copy() for i in range(N_LAYERS)]
+                    baseline_model.intercepts_ = [final_global_weights[N_LAYERS + i].copy() for i in range(N_LAYERS)]
+                    
+                    # Evaluate Global Baseline
+                    baseline_acc = accuracy_score(y_val, baseline_model.predict(X_val)) * 100
+                    print(f"   🌍 Baseline Global Model Accuracy (on local demographics): {baseline_acc:.2f}%")
+                    
+                    # 2. Fine-Tune locally
+                    print(f"   🔧 Fine-tuning locally with specific patient demographic data...")
+                    personalized_model = baseline_model
+                    personalized_model.max_iter = 25 # Short fine-tuning pass
+                    
+                    # Manually clear early-stopping attributes so it allows training again
+                    for attr in ['_no_improvement_count', 'best_loss_', 'loss_curve_', 'validation_scores_']:
+                        if hasattr(personalized_model, attr):
+                            delattr(personalized_model, attr)
+                            
+                    personalized_model.fit(X_train, y_train)
+                    
+                    # 3. Evaluate PFL gain
+                    pfl_acc = accuracy_score(y_val, personalized_model.predict(X_val)) * 100
+                    boost = pfl_acc - baseline_acc
+                    sign = "+" if boost >= 0 else ""
+                    print(f"   🏥 Personalized Model Accuracy: {pfl_acc:.2f}% ({sign}{boost:.2f}% boost!)")
+                    
+                    # Save local
+                    joblib.dump(personalized_model, f"{client_id}_personalized_model.pkl")
+                    print(f"   💾 Saved bespoke model to {client_id}_personalized_model.pkl")
+                    
+                except Exception as e:
+                    print(f"   ❌ PFL Error: {e}")
+                    
             _emit("session_end", status="complete", rounds_done=rnd)
             print("\n🎉 Training complete! All rounds finished.")
             break
