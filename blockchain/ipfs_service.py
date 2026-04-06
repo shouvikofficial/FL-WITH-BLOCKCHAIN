@@ -42,6 +42,19 @@ def simulated_ipfs_pin(data_dict, filename="global_model.pkl"):
     
     print(f"\n  🖧 [IPFS] Uploading '{filename}' to Decentralized Storage...")
     time.sleep(1.5) # Simulate network upload delay
+    
+    # --- PHYSICAL STORAGE SIMULATION ---
+    # We save the actual file to a local "IPFS Node" folder, named by its cryptographic CID!
+    import os
+    ipfs_dir = os.path.join(os.getcwd(), "ipfs_node_storage")
+    os.makedirs(ipfs_dir, exist_ok=True)
+    filepath = os.path.join(ipfs_dir, f"{cid}.pkl")
+    
+    with open(filepath, "wb") as f:
+        f.write(raw_bytes)
+    # -----------------------------------
+    
     print(f"  ✅ [IPFS] Pinning Complete! CID: {cid}")
+    print(f"  📂 [IPFS] You can view your saved model in the 'ipfs_node_storage' folder!")
     
     return cid
