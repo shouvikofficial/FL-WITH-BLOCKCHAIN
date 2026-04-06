@@ -3,7 +3,7 @@ import numpy as np
 # ======================================================
 # ATTACK CONFIGURATION
 # ======================================================
-ATTACK_ENABLED      = True          # 🔁 Toggle attack ON/OFF
+ATTACK_ENABLED      = False          # 🔁 Toggle attack ON/OFF
 MALICIOUS_CLIENT_ID = "Client_3"    # ❌ Hardcoded malicious client (for testing)
 
 # Attack types: "noise", "sign_flip", "free_rider", "label_flip"

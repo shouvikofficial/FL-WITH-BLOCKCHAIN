@@ -1,4 +1,6 @@
 import numpy as np
+import warnings
+from sklearn.metrics.pairwise import cosine_similarity
 
 # ======================================================
 # DEFENSE CONFIGURATION
@@ -131,6 +133,75 @@ def krum_aggregation(weights_list, f=1):
     return weights_list[best_client_idx]
 
 
+def multi_krum_aggregation(weights_list, f=1):
+    """
+    Multi-Krum Aggregation Algorithm.
+    Selects the top (n - f) mostly reliable updates and averages them.
+    Faster training than standard Krum while retaining security.
+    """
+    n = len(weights_list)
+    if n <= 2:
+        return simple_mean(weights_list)
+    
+    flat_weights = [np.concatenate([w.flatten() for w in weights]) for weights in weights_list]
+    distances = np.zeros((n, n))
+    
+    for i in range(n):
+        for j in range(i + 1, n):
+            dist = np.linalg.norm(flat_weights[i] - flat_weights[j])
+            distances[i, j] = dist
+            distances[j, i] = dist
+            
+    scores = []
+    k = max(1, n - f - 2)
+    
+    for i in range(n):
+        sorted_dists = np.sort(distances[i])[1:k+1]
+        scores.append(np.sum(sorted_dists))
+        
+    # Multi-Krum: Select top 'm' clients with lowest scores (m = n - f)
+    m = max(1, n - f)
+    best_client_indices = np.argsort(scores)[:m]
+    
+    print(f"  [🛡️ MULTI-KRUM] Selected clients {[i+1 for i in best_client_indices]} out of {n} as reliable.")
+    
+    selected_weights = [weights_list[i] for i in best_client_indices]
+    return simple_mean(selected_weights)
+
+
+def foolsgold_scores(weights_list):
+    """
+    FoolsGold Collusion Detection.
+    Computes cosine similarity between clients. 
+    If clients send suspiciously identical updates (collusion), they get a score close to 0.
+    Returns: list of scores [0.0 to 1.0] representing integrity.
+    """
+    n = len(weights_list)
+    if n <= 1:
+        return [1.0] * n
+        
+    # Flatten weights
+    flat_weights = np.array([np.concatenate([w.flatten() for w in weights]) for weights in weights_list])
+    
+    # Calculate pairwise cosine similarity
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        cs = cosine_similarity(flat_weights)
+    
+    np.fill_diagonal(cs, 0) # ignore self-similarity
+    
+    scores = []
+    for i in range(n):
+        max_sim = np.max(cs[i])
+        # FoolsGold penalty: 1.0 - max_similarity. 
+        # If similarity is 0.99, score is 0.01 (heavily penalized).
+        score = 1.0 - max(0.0, max_sim)
+        scores.append(score)
+        
+    return scores
+
+
+
 def trust_weighted_mean(weights_list, trust_scores=None):
     """
     Averages weights using a Blockchain Trust Score as the aggregator weight.
@@ -173,6 +244,9 @@ def aggregate_weights(weights_list, sample_counts=None, trust_scores=None):
     if DEFENSE_METHOD == "krum":
         # Assumes 1 malicious client max for krum parameter f
         return krum_aggregation(weights_list, f=1)
+
+    if DEFENSE_METHOD == "multi_krum":
+        return multi_krum_aggregation(weights_list, f=1)
 
     if DEFENSE_METHOD == "trust_weighted":
         return trust_weighted_mean(weights_list, trust_scores)

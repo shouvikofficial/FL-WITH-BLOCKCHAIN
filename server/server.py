@@ -67,7 +67,7 @@ def detect_attack(weights, global_weights, alpha=3.0):
 
 
 # MLP architecture — must match client.py exactly
-_HIDDEN_LAYERS    = (64, 32)
+_HIDDEN_LAYERS    = (128, 64, 32)
 _N_WEIGHT_LAYERS  = len(_HIDDEN_LAYERS) + 1   # 3
 
 

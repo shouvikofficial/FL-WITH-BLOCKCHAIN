@@ -34,7 +34,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, f1_score,
                              roc_auc_score, precision_score, recall_score)
 
-HIDDEN_LAYERS   = (64, 32)
+HIDDEN_LAYERS   = (128, 64, 32)
 N_WEIGHT_LAYERS = len(HIDDEN_LAYERS) + 1   # 3
 
 # ================================================================
@@ -140,6 +140,9 @@ def load_local_data(data_path, label_column, client_id, total_clients=3):
 
     X_all = df.drop(label_column, axis=1).values
     y_all = df[label_column].values
+
+    scaler = StandardScaler()
+    X_all = scaler.fit_transform(X_all)
 
     # Smart Splitting Logic:
     # If you are testing locally and point to the default "data/dataset.xlsx", we split it.

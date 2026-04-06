@@ -101,11 +101,24 @@ def _aggregate_round():
     except Exception as e:
         server_X, server_y = None, None
 
-    for upd in updates:
+    from security.defense import foolsgold_scores
+    
+    # 1. Run FoolsGold over the entire batch of raw updates to detect Sybil/Collusion
+    raw_weights_batch = [u["weights"] for u in updates]
+    fg_scores = foolsgold_scores(raw_weights_batch)
+
+    for idx, upd in enumerate(updates):
         cid     = upd["client_id"]
         weights = upd["weights"]
+        fg_score= fg_scores[idx]
+        
+        # FoolsGold Penalty: If they are > 95% similar to another client, heavily penalize
+        if fg_score < 0.05:
+            _log(f"  [🚨 FOOLSGOLD] {cid} caught colluding! (Similarity > 95%)")
+            state["trust_scores"][cid] = max(0, state["trust_scores"][cid] - 50)
+            state["suspicion"][cid] += 2
 
-        # Server validation detection
+        # 2. Server validation detection
         val_failed = False
         if server_X is not None and server_y is not None:
              try:
