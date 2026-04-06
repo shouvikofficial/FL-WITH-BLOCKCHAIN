@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 GANACHE_URL = os.getenv("BLOCKCHAIN_RPC", "http://127.0.0.1:7545")
 CONTRACT_ADDRESS = os.getenv(
     "CONTRACT_ADDRESS",
-    "0x145699CAb33EC0f7be2AC1a192AA6785a1B6cbb1"
+    "0x4b83D556bE829F54254A6c036f60C33f490DA9fc"
 )
 
 EXPECTED_CHAIN_ID = int(os.getenv("CHAIN_ID", 1337))

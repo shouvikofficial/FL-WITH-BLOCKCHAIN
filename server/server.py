@@ -3,7 +3,7 @@ import os
 import json
 import sys
 from collections import defaultdict
-from data.data_loader import load_and_split_data
+from data.data_loader import load_and_split_data, load_server_validation_data
 from client.client import train_local_model
 from blockchain.blockchain import log_update
 from sklearn.linear_model import LogisticRegression
@@ -33,6 +33,7 @@ ROUNDS       = 25   # 🔧 Increased from 16 → 25 for better convergence
 # 🔐 Malicious client registry (DEFENSE)
 malicious_clients   = set()
 suspicion_counter   = defaultdict(int)
+trust_scores        = defaultdict(lambda: 100)
 
 # 📊 Metrics history
 accuracy_history  = []
@@ -73,20 +74,23 @@ _N_WEIGHT_LAYERS  = len(_HIDDEN_LAYERS) + 1   # 3
 # ======================================================
 # GLOBAL MODEL EVALUATION (MLP)
 # ======================================================
-def evaluate_global_model(global_weights, client_data):
+def evaluate_global_model(global_weights, data_input, is_server_data=False):
     """
     Reconstruct an MLP from the federated global weights and evaluate it.
     Uses a tiny dummy fit to initialize weight shapes, then overwrites.
     """
-    X_all, y_all = [], []
-    for client in client_data:
-        for sample in client:
-            x, y = sample
-            X_all.append(x)
-            y_all.append(y)
+    if not is_server_data:
+        X_all, y_all = [], []
+        for client in data_input:
+            for sample in client:
+                x, y = sample
+                X_all.append(x)
+                y_all.append(y)
 
-    X_all = np.asarray(X_all, dtype=float)
-    y_all = np.asarray(y_all, dtype=int)
+        X_all = np.asarray(X_all, dtype=float)
+        y_all = np.asarray(y_all, dtype=int)
+    else:
+        X_all, y_all = data_input[0], data_input[1]
 
     if global_weights is None:
         raise ValueError("Global weights are None during evaluation")
@@ -131,6 +135,12 @@ def run_federated_learning():
         LABEL_COLUMN,
         NUM_CLIENTS
     )
+    
+    server_X, server_y = load_server_validation_data(
+        DATA_PATH, 
+        LABEL_COLUMN, 
+        samples=150
+    )
 
     global_weights = None
     global_scaler  = None
@@ -146,6 +156,7 @@ def run_federated_learning():
         malicious_clients.clear()
         all_client_updates = [] # Store all updates for potential re-aggregation
         local_weights   = []    # Filtered weights for aggregation
+        local_weights_client_ids = [] # To map trust scores back
         scaler_stats_list = []
         sample_counts   = []
 
@@ -166,14 +177,29 @@ def run_federated_learning():
 
             log_print(f"  [{client_id}] samples={num_samples} | training done")
 
+            # 🔎 SERVER-SIDE VALIDATION DETECTION
+            val_failed = False
+            try:
+                acc, _, _, _, _, _ = evaluate_global_model(weights, (server_X, server_y), is_server_data=True)
+                val_failed = (acc < 0.50)  # Random guessing or worse
+                if val_failed:
+                    log_print(f"  [🚨 VALIDATION] {client_id} failed server validation! (Acc: {acc:.4f})")
+            except Exception:
+                pass
+
             # 🔎 TEMPORAL ATTACK DETECTION (alpha=3.0, 2 consecutive rounds)
-            if detect_attack(weights, global_weights):
+            dist_failed = detect_attack(weights, global_weights)
+
+            if dist_failed or val_failed:
                 suspicion_counter[client_id] += 1
+                trust_scores[client_id] = max(0, trust_scores[client_id] - 20)
+                log_print(f"  ⚠️ {client_id} flagged! Trust Score: {trust_scores[client_id]}")
             else:
                 suspicion_counter[client_id] = 0
+                trust_scores[client_id] = min(100, trust_scores[client_id] + 5)
 
-            if suspicion_counter[client_id] >= 2:
-                log_print(f"  ⚠️ CONFIRMED MALICIOUS: {client_id}")
+            if suspicion_counter[client_id] >= 2 or trust_scores[client_id] <= 20:
+                log_print(f"  🚫 CONFIRMED MALICIOUS: {client_id}")
                 malicious_clients.add(client_id)
 
             # 🔐 Blockchain logging
@@ -187,6 +213,7 @@ def run_federated_learning():
             # 🛡️ Only aggregate clean clients
             if client_id not in malicious_clients:
                 local_weights.append(weights)
+                local_weights_client_ids.append(client_id)
                 if scaler_stats is not None:
                     scaler_stats_list.append(scaler_stats)
                     sample_counts.append(num_samples)
@@ -209,8 +236,15 @@ def run_federated_learning():
         if attack_detected:
             log_print(f"  ⚠️ Attack signature detected! Defending via {DEFENSE_METHOD.title()} Aggregation.")
 
+        # Prepare trust scores for robust aggregation
+        current_trust_scores = [trust_scores[f"Client_{i+1}"] for i in range(NUM_CLIENTS) if f"Client_{i+1}" in local_weights_client_ids]
+        
+        # If fallback (all flagged), just use regular scores
+        if not local_weights_client_ids:
+            current_trust_scores = [trust_scores[f"Client_{i+1}"] for i in range(NUM_CLIENTS)]
+
         # Use robust aggregation from defense.py
-        global_weights = aggregate_weights(local_weights, sample_counts=sample_counts)
+        global_weights = aggregate_weights(local_weights, sample_counts=sample_counts, trust_scores=current_trust_scores)
 
         # Federated scaler (weighted mean/var)
         if scaler_stats_list:
@@ -252,7 +286,8 @@ def run_federated_learning():
                         "roc": roc_auc_history,
                         "mcc": mcc_history
                     },
-                    "malicious_attackers": list(malicious_clients)
+                    "malicious_attackers": list(malicious_clients),
+                    "trust_scores": dict(trust_scores)
                 }, f)
         except Exception as e:
             print(f"Failed to write metrics.json: {e}")
@@ -284,7 +319,8 @@ def run_federated_learning():
                     "roc": roc_auc_history,
                     "mcc": mcc_history
                 },
-                "malicious_attackers": list(malicious_clients)
+                "malicious_attackers": list(malicious_clients),
+                "trust_scores": dict(trust_scores)
             }, f)
     except Exception as e:
         pass

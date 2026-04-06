@@ -3,7 +3,7 @@ import sys
 import os
 from sklearn.neural_network import MLPClassifier
 from client.client_preprocessing import local_preprocess
-from security.attack import poison_weights
+from security.attack import poison_weights, poison_data
 
 # ======================================================
 # MLP ARCHITECTURE (must match server.py exactly!)
@@ -32,6 +32,11 @@ def train_local_model(client_id, client_df, global_weights=None, global_scaler=N
         client_df,
         global_scaler=global_scaler
     )
+
+    # ------------------------------------------------
+    # 🛡️ DATA POISONING INJECTION (Label-Flipping)
+    # ------------------------------------------------
+    X, y = poison_data(client_id, X, y)
 
     # ------------------------------------------------
     # 2️⃣ MLP INITIALIZATION
@@ -65,7 +70,9 @@ def train_local_model(client_id, client_df, global_weights=None, global_scaler=N
     # ------------------------------------------------
     # 5️⃣ CONTINUE TRAINING (warm_start keeps loaded weights)
     # ------------------------------------------------
-    model.fit(X, y)
+    from security.attack import ATTACK_TYPE, ATTACK_ENABLED, MALICIOUS_CLIENT_ID
+    if not (ATTACK_ENABLED and ATTACK_TYPE == "free_rider" and client_id == MALICIOUS_CLIENT_ID):
+        model.fit(X, y)
 
     # ------------------------------------------------
     # 6️⃣ EXTRACT ALL LAYER WEIGHTS
@@ -73,8 +80,10 @@ def train_local_model(client_id, client_df, global_weights=None, global_scaler=N
     # ------------------------------------------------
     flat_weights = list(model.coefs_) + list(model.intercepts_)
     
-    # Apply poisoning if this client is the designated attacker
-    flat_weights = poison_weights(client_id, flat_weights)
+    # ------------------------------------------------
+    # 🛡️ MODEL POISONING INJECTION (Noise / Sign-Flip / Free-Rider)
+    # ------------------------------------------------
+    flat_weights = poison_weights(client_id, flat_weights, global_weights)
 
     return {
         "weights":      flat_weights,

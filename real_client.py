@@ -141,15 +141,17 @@ def load_local_data(data_path, label_column, client_id, total_clients=3):
     X_all = df.drop(label_column, axis=1).values
     y_all = df[label_column].values
 
-    scaler = StandardScaler()
-    X_all = scaler.fit_transform(X_all)
-
-    # Split dataset into equal parts and take this client's slice
-    idx = int(client_id.replace("Client_", "")) - 1  # 0-based
-    indices = np.array_split(np.arange(len(X_all)), total_clients)[idx]
-
-    X = X_all[indices]
-    y = y_all[indices]
+    # Smart Splitting Logic:
+    # If you are testing locally and point to the default "data/dataset.xlsx", we split it.
+    # If the client points to a custom file (like "MainData.xlsx"), they use 100% of it!
+    if "data/dataset.xlsx" in data_path.replace("\\", "/"):
+        idx = int(client_id.replace("Client_", "")) - 1  # 0-based
+        indices = np.array_split(np.arange(len(X_all)), total_clients)[idx]
+        X = X_all[indices]
+        y = y_all[indices]
+    else:
+        X = X_all
+        y = y_all
 
     # Class distribution
     unique, counts = np.unique(y, return_counts=True)
@@ -202,7 +204,7 @@ def _clip_weights(weights, max_norm=2.0):
     return weights
 
 
-def train_local(X, y, global_weights=None, round_num=1):
+def train_local(client_id, X, y, global_weights=None, round_num=1):
     """
     Train MLP on local data with:
       - Proper train/val split (accuracy measured on UNSEEN data)
@@ -213,16 +215,11 @@ def train_local(X, y, global_weights=None, round_num=1):
     """
     t_start = time.time()
 
-    # ── Probabilistic poisoning (15% chance, mirrors server-side) ──────────
-    poisoning_applied = False
-    if np.random.random() < 0.15:
-        n_poison = int(len(y) * 0.15)
-        if n_poison > 0:
-            idx = np.random.choice(len(y), n_poison, replace=False)
-            y_p = y.copy()
-            y_p[idx] = 1 - y_p[idx]
-            y = y_p
-            poisoning_applied = True
+    # ── Advanced poisoning via security.attack module ──────────
+    from security.attack import poison_data
+    y_orig = y.copy()
+    X, y = poison_data(client_id, X, y)
+    poisoning_applied = not np.array_equal(y, y_orig)
 
     # ── SMOTE balancing ─────────────────────────────────────────────────────
     X, y, smote_applied = _apply_smote_if_needed(X, y)
@@ -295,7 +292,9 @@ def train_local(X, y, global_weights=None, round_num=1):
         model.best_loss_ = np.inf
 
     # Step 4: real training — warm_start preserves injected weights
-    model.fit(X_train, y_train)
+    from security.attack import ATTACK_ENABLED, ATTACK_TYPE, MALICIOUS_CLIENT_ID
+    if not (ATTACK_ENABLED and ATTACK_TYPE == "free_rider" and client_id == MALICIOUS_CLIENT_ID):
+        model.fit(X_train, y_train)
 
 
     # ── Evaluate on VALIDATION set (unseen data) ─────────────────────────────
@@ -313,6 +312,10 @@ def train_local(X, y, global_weights=None, round_num=1):
 
     duration     = round(time.time() - t_start, 2)
     flat_weights = list(model.coefs_) + list(model.intercepts_)
+    
+    # ── Model poisoning (noise, sign-flip, free-rider) ──
+    from security.attack import poison_weights
+    flat_weights = poison_weights(client_id, flat_weights, global_weights)
 
 
 
@@ -416,7 +419,7 @@ def run(client_id, server_url, data_path, label_col, total_clients, total_rounds
 
         # 2. Train locally (preprocessing happens inside)
         print(f"  🧠 Training locally...")
-        local_weights = train_local(X, y, global_weights, round_num=rnd)
+        local_weights = train_local(client_id, X, y, global_weights, round_num=rnd)
 
         # 3. Submit to server
         print(f"  📤 Submitting update to server...")

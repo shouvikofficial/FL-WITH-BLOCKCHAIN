@@ -49,6 +49,7 @@ state = {
     "all_done":        False,
     "malicious":       set(),
     "suspicion":       defaultdict(int),
+    "trust_scores":    defaultdict(lambda: 100),
     "client_prev_hash":{},          # Track previous transaction hashes per client
     "metrics": {
         "accuracy": [], "f1": [], "precision": [],
@@ -73,7 +74,8 @@ def _write_metrics(status, completed=False):
             "completed": completed,
             "round": state["round"],
             "metrics": {k: state["metrics"][k] for k in state["metrics"]},
-            "malicious_attackers": list(state["malicious"])
+            "malicious_attackers": list(state["malicious"]),
+            "trust_scores": dict(state["trust_scores"])
         }, f)
 
 
@@ -89,18 +91,41 @@ def _aggregate_round():
 
     # Detect attacks
     clean_weights, sample_counts = [], []
+    local_weights_client_ids = []
     malicious_this_round = set()
+
+    # Load server validation data (safely)
+    try:
+        from data.data_loader import load_server_validation_data
+        server_X, server_y = load_server_validation_data("data/dataset.xlsx", "target", samples=150)
+    except Exception as e:
+        server_X, server_y = None, None
 
     for upd in updates:
         cid     = upd["client_id"]
         weights = upd["weights"]
 
-        if detect_attack(weights, state["global_weights"]):
+        # Server validation detection
+        val_failed = False
+        if server_X is not None and server_y is not None:
+             try:
+                 acc, _, _, _, _, _ = evaluate_global_model(weights, (server_X, server_y), is_server_data=True)
+                 if acc < 0.50:
+                     val_failed = True
+                     _log(f"  [🚨 VALIDATION] {cid} failed server validation! (Acc: {acc:.4f})")
+             except Exception:
+                 pass
+
+        dist_failed = detect_attack(weights, state["global_weights"])
+
+        if dist_failed or val_failed:
             state["suspicion"][cid] += 1
+            state["trust_scores"][cid] = max(0, state["trust_scores"][cid] - 20)
         else:
             state["suspicion"][cid] = 0
+            state["trust_scores"][cid] = min(100, state["trust_scores"][cid] + 5)
 
-        if state["suspicion"][cid] >= 2:
+        if state["suspicion"][cid] >= 2 or state["trust_scores"][cid] <= 20:
             _log(f"  ⚠️ CONFIRMED MALICIOUS: {cid}")
             state["malicious"].add(cid)
             malicious_this_round.add(cid)
@@ -127,15 +152,19 @@ def _aggregate_round():
         if cid not in state["malicious"]:
             clean_weights.append(weights)
             sample_counts.append(upd["num_samples"])
+            local_weights_client_ids.append(cid)
+
+    current_trust_scores = [state["trust_scores"][cid] for cid in local_weights_client_ids]
 
     # Fail-open
     if not clean_weights:
         _log("  ⚠️ All clients flagged — using all weights this round.")
         clean_weights   = [u["weights"]     for u in updates]
         sample_counts   = [u["num_samples"] for u in updates]
+        current_trust_scores = [state["trust_scores"][u["client_id"]] for u in updates]
 
     # Aggregate
-    state["global_weights"] = aggregate_weights(clean_weights, sample_counts)
+    state["global_weights"] = aggregate_weights(clean_weights, sample_counts, current_trust_scores)
 
     # Evaluate
     try:
@@ -257,6 +286,7 @@ def reset_fl_session():
         state["all_done"]       = False
         state["malicious"]      = set()
         state["suspicion"]      = defaultdict(int)
+        state["trust_scores"]   = defaultdict(lambda: 100)
         state["client_prev_hash"]= {}
         state["metrics"]        = {"accuracy": [], "f1": [], "precision": [],
                                    "recall": [], "roc": [], "mcc": []}

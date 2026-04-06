@@ -21,6 +21,30 @@ def add_interactions(df):
 
 
 # ======================================================
+# SERVER VALIDATION DATA LOADER
+# ======================================================
+def load_server_validation_data(path, label_column, samples=100):
+    """
+    Load a small hold-out set for the server to perform validation
+    checks against potentially malicious clients.
+    """
+    df = pd.read_excel(path)
+    df = df.dropna()
+
+    if all(c in df.columns for c in ["age", "glucose", "BMI", "heartRate", "exang", "chol", "fbs"]):
+        df = add_interactions(df)
+
+    X = df.drop(label_column, axis=1).values
+    y = df[label_column].values
+
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+
+    # Take the last `samples` as server validation data
+    return X[-samples:], y[-samples:]
+
+
+# ======================================================
 # DATA LOADER WITH INTERACTIONS
 # ======================================================
 def load_and_split_data(path, label_column, num_clients=3):
