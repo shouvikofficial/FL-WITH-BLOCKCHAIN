@@ -207,7 +207,7 @@ def _clip_weights(weights, max_norm=2.0):
     return weights
 
 
-def train_local(client_id, X, y, global_weights=None, round_num=1):
+def train_local(client_id, X, y, global_weights=None, round_num=1, apply_privacy=False):
     """
     Train MLP on local data with:
       - Proper train/val split (accuracy measured on UNSEEN data)
@@ -320,8 +320,13 @@ def train_local(client_id, X, y, global_weights=None, round_num=1):
     from security.attack import poison_weights
     flat_weights = poison_weights(client_id, flat_weights, global_weights)
 
-
-
+    # 🛡️ LOCAL DIFFERENTIAL PRIVACY (LDP) 🛡️
+    if apply_privacy:
+        noise_scale = 0.01
+        for i in range(len(flat_weights)):
+            noise = np.random.normal(0, noise_scale, size=flat_weights[i].shape)
+            flat_weights[i] = flat_weights[i] + noise
+        print("  🛡️ [PRIVACY] Added Gaussian Noise (LDP) to weights.")
     _emit("training_done",
           round=round_num,
           local_accuracy=round(val_acc, 4),   # Validation accuracy (honest)
@@ -391,7 +396,7 @@ def wait_for_round(server_url, current_round, timeout=300):
 # ================================================================
 # MAIN TRAINING LOOP
 # ================================================================
-def run(client_id, server_url, data_path, label_col, total_clients, total_rounds):
+def run(client_id, server_url, data_path, label_col, total_clients, total_rounds, apply_privacy=False):
     # Initialise the logging channel — points events to this client's server-side log
     _init_log(client_id, server_url)
 
@@ -422,7 +427,7 @@ def run(client_id, server_url, data_path, label_col, total_clients, total_rounds
 
         # 2. Train locally (preprocessing happens inside)
         print(f"  🧠 Training locally...")
-        local_weights = train_local(client_id, X, y, global_weights, round_num=rnd)
+        local_weights = train_local(client_id, X, y, global_weights, round_num=rnd, apply_privacy=apply_privacy)
 
         # 3. Submit to server
         print(f"  📤 Submitting update to server...")
@@ -470,6 +475,7 @@ if __name__ == "__main__":
     parser.add_argument("--label",      default="target",            help="Target column name")
     parser.add_argument("--clients",    default=3,  type=int,        help="Total number of clients")
     parser.add_argument("--rounds",     default=25, type=int,        help="Total rounds")
+    parser.add_argument("--privacy",    action="store_true",         help="Enable Local Differential Privacy (Gaussian Noise)")
     args = parser.parse_args()
 
     # Validate client_id format
@@ -477,4 +483,4 @@ if __name__ == "__main__":
         print("❌ client_id must be in format: Client_1, Client_2, Client_3")
         sys.exit(1)
 
-    run(args.client_id, args.server.rstrip("/"), args.data, args.label, args.clients, args.rounds)
+    run(args.client_id, args.server.rstrip("/"), args.data, args.label, args.clients, args.rounds, args.privacy)
