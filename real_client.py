@@ -483,10 +483,10 @@ def run(client_id, server_url, data_path, label_col, total_clients, total_rounds
                     personalized_model = baseline_model
                     personalized_model.max_iter = 25 # Short fine-tuning pass
                     
-                    # Manually clear early-stopping attributes so it allows training again
-                    for attr in ['_no_improvement_count', 'best_loss_', 'loss_curve_', 'validation_scores_']:
-                        if hasattr(personalized_model, attr):
-                            delattr(personalized_model, attr)
+                    # Safely reset early-stopping limits without deleting the data structures
+                    personalized_model.no_improvement_count_ = 0
+                    if hasattr(personalized_model, 'best_loss_'):
+                        personalized_model.best_loss_ = np.inf
                             
                     personalized_model.fit(X_train, y_train)
                     

@@ -1,6 +1,6 @@
 import hashlib
-import json
 import time
+import pickle
 
 # IPFS Base58 alphabet
 ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -24,8 +24,8 @@ def simulated_ipfs_pin(data_dict, filename="global_model.pkl"):
     in the IPFS Multihash format (0x12, 0x20...) then Base58 encodes it.
     This creates an authentic-looking CID starting with 'Qm...'.
     """
-    # 1. Serialize data
-    raw_bytes = json.dumps(data_dict).encode('utf-8')
+    # 1. Serialize data (Using pickle instead of JSON to handle NumPy arrays perfectly)
+    raw_bytes = pickle.dumps(data_dict)
     
     # 2. SHA-256 Hash
     sha256_hash = hashlib.sha256(raw_bytes).digest()
