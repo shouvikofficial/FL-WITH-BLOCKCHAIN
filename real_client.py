@@ -136,7 +136,8 @@ def load_local_data(data_path, label_column, client_id, total_clients=3):
         df["heartRate_exang"] = df["heartRate"] * df["exang"]
         df["chol_fbs"]        = df["chol"]      * df["fbs"]
 
-    num_features = len(df.columns) - 1  # exclude label
+    feature_names = df.drop(label_column, axis=1).columns.tolist()
+    num_features = len(feature_names)
 
     X_all = df.drop(label_column, axis=1).values
     y_all = df[label_column].values
@@ -172,8 +173,7 @@ def load_local_data(data_path, label_column, client_id, total_clients=3):
           label=label_column,
           class_distribution=class_dist)
 
-    return X, y, scaler_stats, num_features
-
+    return X, y, scaler_stats, num_features, feature_names
 
 # ================================================================
 # SMOTE (optional, matching server-side logic)
@@ -412,7 +412,7 @@ def run(client_id, server_url, data_path, label_col, total_clients, total_rounds
           data_path=data_path)
 
     # Load local data once
-    X, y, scaler_stats, num_features = load_local_data(data_path, label_col, client_id, total_clients)
+    X, y, scaler_stats, num_features, feature_names = load_local_data(data_path, label_col, client_id, total_clients)
 
     for rnd in range(1, total_rounds + 1):
         print(f"\n--- Round {rnd}/{total_rounds} ---")
@@ -500,6 +500,44 @@ def run(client_id, server_url, data_path, label_col, total_clients, total_rounds
                     joblib.dump(personalized_model, f"{client_id}_personalized_model.pkl")
                     print(f"   💾 Saved bespoke model to {client_id}_personalized_model.pkl")
                     
+                    # 4. Explainable AI (XAI) Module
+                    print("\n   🧠 [XAI] Analyzing Black-Box Medical Network using Permutation Importance...")
+                    from sklearn.inspection import permutation_importance
+                    
+                    result = permutation_importance(personalized_model, X_val, y_val, n_repeats=5, random_state=42)
+                    importances = result.importances_mean
+                    top_idx = np.argsort(importances)[::-1][:3]
+                    
+                    print(f"   📊 [XAI] Top 3 Medical Predictors for THIS Hospital's Demographics:")
+                    for i, idx in enumerate(top_idx):
+                        feat = feature_names[idx] if idx < len(feature_names) else f"Feature_{idx}"
+                        print(f"       {i+1}. {feat} (Influence: {importances[idx]:.4f})")
+                        
+                    # 5. SHAP Analysis (Game-Theoretic)
+                    print("\n   💠 [XAI] Computing SHAP (SHapley Additive exPlanations) values...")
+                    import shap
+                    
+                    # KernelExplainer is slow on MLPs; we use a micro-sample so the demo remains snappy.
+                    try:
+                        background = shap.sample(X_train, 10, random_state=42)
+                        explainer = shap.KernelExplainer(personalized_model.predict_proba, background)
+                        
+                        shap_values = explainer.shap_values(X_val[:5], silent=True)
+                        
+                        sv = shap_values[1] if isinstance(shap_values, list) else (shap_values[..., 1] if len(shap_values.shape) > 2 else shap_values)
+                        if len(sv.shape) == 3: # Some versions of SHAP return 3D
+                            sv = sv[:,:,1]
+
+                        mean_shap = np.abs(sv).mean(axis=0)
+                        top_shap_idx = np.argsort(mean_shap)[::-1][:3]
+                        
+                        print(f"   📈 [SHAP] Top 3 Game-Theoretic Drivers for Local Patients:")
+                        for i, idx in enumerate(top_shap_idx):
+                            feat = feature_names[idx] if idx < len(feature_names) else f"Feature_{idx}"
+                            print(f"       {i+1}. {feat} (SHAP Impact: {mean_shap[idx]:.4f})")
+                    except Exception as e_shap:
+                        print(f"   ⚠️ SHAP calculation skipped: {e_shap}")
+                        
                 except Exception as e:
                     print(f"   ❌ PFL Error: {e}")
                     

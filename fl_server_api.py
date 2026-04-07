@@ -28,7 +28,7 @@ from blockchain.blockchain import log_update
 # CONFIG
 # ================================================================
 EXPECTED_CLIENTS = int(os.getenv("FL_NUM_CLIENTS", 3))
-TOTAL_ROUNDS     = int(os.getenv("FL_ROUNDS", 25))
+TOTAL_ROUNDS     = int(os.getenv("FL_ROUNDS", 30))
 METRICS_FILE     = "static/metrics.json"
 LOG_FILE         = "static/training_log.txt"
 ROUND_TIMEOUT    = int(os.getenv("FL_ROUND_TIMEOUT", 300))   # 5 min per round
