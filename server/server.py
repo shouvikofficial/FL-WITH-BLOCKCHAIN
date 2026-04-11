@@ -9,6 +9,7 @@ from blockchain.blockchain import log_update
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from evaluation.metrics import evaluate_model
+from evaluation.visualizations import generate_visualizations
 from security.defense import aggregate_weights, DEFENSE_METHOD
 
 LOG_FILE = "static/training_log.txt"
@@ -74,10 +75,10 @@ _N_WEIGHT_LAYERS  = len(_HIDDEN_LAYERS) + 1   # 3
 # ======================================================
 # GLOBAL MODEL EVALUATION (MLP)
 # ======================================================
-def evaluate_global_model(global_weights, data_input, is_server_data=False):
+def build_global_model(global_weights, data_input, is_server_data=False):
     """
-    Reconstruct an MLP from the federated global weights and evaluate it.
-    Uses a tiny dummy fit to initialize weight shapes, then overwrites.
+    Reconstruct an MLP from the federated global weights.
+    Returns the instantiated model, X_all, y_all.
     """
     if not is_server_data:
         X_all, y_all = [], []
@@ -93,7 +94,7 @@ def evaluate_global_model(global_weights, data_input, is_server_data=False):
         X_all, y_all = data_input[0], data_input[1]
 
     if global_weights is None:
-        raise ValueError("Global weights are None during evaluation")
+        raise ValueError("Global weights are None during model build")
 
     # Build MLP with same architecture as clients
     model = MLPClassifier(
@@ -106,18 +107,22 @@ def evaluate_global_model(global_weights, data_input, is_server_data=False):
         random_state=42
     )
 
-    # Quick dummy fit on tiny sample → initializes coefs_ / intercepts_ shapes
-    # max_iter=1 is intentional — we just need shape init, not convergence
     import warnings
     from sklearn.exceptions import ConvergenceWarning
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ConvergenceWarning)
         model.fit(X_all[:20], y_all[:20])
 
-    # Overwrite with global federated weights
     model.coefs_      = [global_weights[i].copy()                       for i in range(_N_WEIGHT_LAYERS)]
     model.intercepts_ = [global_weights[_N_WEIGHT_LAYERS + i].copy()   for i in range(_N_WEIGHT_LAYERS)]
+    
+    return model, X_all, y_all
 
+def evaluate_global_model(global_weights, data_input, is_server_data=False):
+    """
+    Reconstruct an MLP from the federated global weights and evaluate it.
+    """
+    model, X_all, y_all = build_global_model(global_weights, data_input, is_server_data)
     accuracy, f1, precision, recall, roc_auc, mcc = evaluate_model(model, X_all, y_all)
     return accuracy, f1, precision, recall, roc_auc, mcc
 
@@ -136,7 +141,7 @@ def run_federated_learning():
         NUM_CLIENTS
     )
     
-    server_X, server_y = load_server_validation_data(
+    server_X, server_y, feature_names = load_server_validation_data(
         DATA_PATH, 
         LABEL_COLUMN, 
         samples=150
@@ -304,6 +309,14 @@ def run_federated_learning():
 
     log_print("\n✅ Federated Learning Completed Successfully")
     
+    # 🌐 GENERATE VISUAL ANALYTICS MAPS
+    try:
+        log_print("  📊 Generating advanced visual analytics...")
+        final_model, sX, sy = build_global_model(global_weights, (server_X, server_y), is_server_data=True)
+        generate_visualizations(final_model, sX, sy, output_dir="static", feature_names=feature_names)
+    except Exception as e:
+        log_print(f"  ❌ Visualization error: {e}")
+
     # 🌐 FINAL BROADCAST FOR WEB DASHBOARD
     try:
         with open("static/metrics.json", "w") as f:

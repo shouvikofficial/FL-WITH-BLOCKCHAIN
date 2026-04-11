@@ -397,6 +397,17 @@ def wait_for_round(server_url, current_round, timeout=300):
 # MAIN TRAINING LOOP
 # ================================================================
 def run(client_id, server_url, data_path, label_col, total_clients, total_rounds, apply_privacy=False):
+    # 🌟 DYNAMIC ROUND SYNCHRONIZATION
+    try:
+        import requests
+        r = requests.get(f"{server_url}/fl/status", timeout=5)
+        if r.status_code == 200:
+            server_rounds = r.json().get("total_rounds")
+            if server_rounds is not None:
+                total_rounds = server_rounds
+    except Exception:
+        pass
+
     # Initialise the logging channel — points events to this client's server-side log
     _init_log(client_id, server_url)
 

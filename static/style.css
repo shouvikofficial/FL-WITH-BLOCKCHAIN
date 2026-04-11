@@ -81,7 +81,10 @@ body {
     padding: 32px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
 }
 
 .brand {
@@ -160,6 +163,7 @@ body {
 .status-box {
     padding: 20px;
     margin-top: auto;
+    flex-shrink: 0;
 }
 
 .status-box h4 {
@@ -172,14 +176,18 @@ body {
 
 .indicator {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     font-weight: 600;
+    line-height: 1.4;
+    font-size: 0.95rem;
 }
 
 .pulse-dot {
+    flex-shrink: 0;
     width: 10px;
     height: 10px;
+    margin-top: 5px;
     background-color: #52525b; /* Default gray/standby */
     border-radius: 50%;
     box-shadow: 0 0 0 0 rgba(82, 82, 91, 0.7);
@@ -335,10 +343,11 @@ body {
 }
 
 /* Custom Scrollbar */
-#terminal-output::-webkit-scrollbar {
+#terminal-output::-webkit-scrollbar, .sidebar::-webkit-scrollbar {
     width: 6px;
 }
-#terminal-output::-webkit-scrollbar-thumb {
+#terminal-output::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb {
     background: rgba(99, 102, 241, 0.5);
     border-radius: 4px;
 }
+

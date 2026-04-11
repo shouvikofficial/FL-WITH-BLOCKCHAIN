@@ -34,6 +34,7 @@ def load_server_validation_data(path, label_column, samples=100):
     if all(c in df.columns for c in ["age", "glucose", "BMI", "heartRate", "exang", "chol", "fbs"]):
         df = add_interactions(df)
 
+    feature_names = df.drop(label_column, axis=1).columns.tolist()
     X = df.drop(label_column, axis=1).values
     y = df[label_column].values
 
@@ -41,7 +42,7 @@ def load_server_validation_data(path, label_column, samples=100):
     X = scaler.fit_transform(X)
 
     # Take the last `samples` as server validation data
-    return X[-samples:], y[-samples:]
+    return X[-samples:], y[-samples:], feature_names
 
 
 # ======================================================

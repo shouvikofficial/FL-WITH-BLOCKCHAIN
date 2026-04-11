@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,11 +12,27 @@
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        .view-section { display: flex; flex-direction: column; gap: 24px; flex: 1; min-height: 0; }
-        .view-section.hidden { display: none !important; }
+        .view-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            flex: 1;
+            min-height: 0;
+        }
 
-        tr:hover td { background: rgba(255, 255, 255, 0.02); }
-        .hash-cell { font-family: monospace; color: #9ca3af; font-size: 0.95rem; }
+        .view-section.hidden {
+            display: none !important;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .hash-cell {
+            font-family: monospace;
+            color: #9ca3af;
+            font-size: 0.95rem;
+        }
 
         .attack-card {
             background: rgba(239, 68, 68, 0.05);
@@ -25,6 +42,7 @@
             position: relative;
             overflow: hidden;
         }
+
         .attack-card::before {
             content: '';
             position: absolute;
@@ -35,6 +53,7 @@
             background: #ef4444;
             box-shadow: 0 0 15px #ef4444;
         }
+
         .safe-card {
             background: rgba(16, 185, 129, 0.05);
             border: 1px solid rgba(16, 185, 129, 0.2);
@@ -42,6 +61,7 @@
             padding: 2rem;
             text-align: center;
         }
+
         .attacker-badge {
             display: inline-block;
             background: rgba(239, 68, 68, 0.2);
@@ -54,6 +74,7 @@
             border: 1px solid rgba(239, 68, 68, 0.3);
             box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
         }
+
         .defense-info {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
@@ -61,31 +82,44 @@
         }
     </style>
 </head>
+
 <body>
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
 
     <div class="dashboard-container">
-        
+
         <!-- SIDEBAR -->
         <aside class="sidebar glass">
             <div class="brand">
                 <div class="logo-circle"></div>
                 <h2>Watchtower</h2>
             </div>
-            
+
             <p class="subtitle">Decentralized Federated Learning on Blockchain</p>
 
             <div class="controls">
                 <button id="nav-dashboard" class="glow-btn nav-btn active">Dashboard</button>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button id="start-btn" class="glow-btn" style="background: linear-gradient(135deg, #10b981, #059669); flex: 1; padding: 12px; font-size: 0.9rem;">Start Federation</button>
-                    <button id="stop-btn" class="glow-btn hidden" style="background: linear-gradient(135deg, #ef4444, #b91c1c); flex: 1; padding: 12px; font-size: 0.9rem;">Stop Training</button>
+                    <button id="start-btn" class="glow-btn"
+                        style="background: linear-gradient(135deg, #10b981, #059669); flex: 1; padding: 12px; font-size: 0.9rem;">Start
+                        Federation</button>
+                    <button id="stop-btn" class="glow-btn hidden"
+                        style="background: linear-gradient(135deg, #ef4444, #b91c1c); flex: 1; padding: 12px; font-size: 0.9rem;">Stop
+                        Training</button>
                 </div>
-                <div style="margin-top:20px; text-transform:uppercase; font-size:0.75rem; color:#a1a1aa; letter-spacing:1px; padding-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.1);">Audit Tools</div>
-                <button class="outline-btn nav-btn" data-target="view-terminal" style="margin-top:10px;">Terminal Logs</button>
-                <button class="outline-btn nav-btn" data-target="view-blockchain" style="margin-top:10px;">Blockchain Logs</button>
-                <button class="outline-btn nav-btn" data-target="view-attack" style="margin-top:10px;">Attack Audit</button>
+                <div
+                    style="margin-top:20px; text-transform:uppercase; font-size:0.75rem; color:#a1a1aa; letter-spacing:1px; padding-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.1);">
+                    Audit Tools</div>
+                <button class="outline-btn nav-btn" data-target="view-terminal" style="margin-top:10px;">Terminal
+                    Logs</button>
+                <button class="outline-btn nav-btn" data-target="view-blockchain" style="margin-top:10px;">Blockchain
+                    Logs</button>
+                <button class="outline-btn nav-btn" data-target="view-attack" style="margin-top:10px;">Attack
+                    Audit</button>
+                <button class="outline-btn nav-btn" data-target="view-analytics" style="margin-top:10px;">Visual
+                    Analytics</button>
+
 
             </div>
 
@@ -107,7 +141,7 @@
         <main class="main-content">
             <header class="top-nav glass">
                 <div class="round-display">
-                    <h3>Round <span id="current-round">0</span> / 25</h3>
+                    <h3>Round <span id="current-round">0</span> / <span id="total-rounds">25</span></h3>
                 </div>
                 <div class="network-info">
                     <span>Chain ID: 1337</span>
@@ -147,37 +181,51 @@
             </div>
 
             <!-- VIEW: TERMINAL -->
-            <div id="view-terminal" class="view-section hidden glass" style="padding: 2rem; display: flex; flex-direction: column;">
+            <div id="view-terminal" class="view-section hidden glass"
+                style="padding: 2rem; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>System Terminal Logs</h3>
                     <span class="wallet-badge">Live Feed</span>
                 </div>
-                
-                <div class="table-container" style="flex: 1; overflow-y: auto; border-radius: 12px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.5rem; display: flex; flex-direction: column;">
-                    <pre id="terminal-output" style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 0.95rem; color: #4ade80; white-space: pre-wrap; line-height: 1.5; flex: 1;">Ready. Click 'Initialize Federation' to begin.</pre>
+
+                <div class="table-container"
+                    style="flex: 1; overflow-y: auto; border-radius: 12px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); padding: 1.5rem; display: flex; flex-direction: column;">
+                    <pre id="terminal-output"
+                        style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 0.95rem; color: #4ade80; white-space: pre-wrap; line-height: 1.5; flex: 1;">Ready. Click 'Initialize Federation' to begin.</pre>
                 </div>
             </div>
 
             <!-- VIEW: BLOCKCHAIN -->
-            <div id="view-blockchain" class="view-section hidden glass" style="padding: 2rem; display: flex; flex-direction: column;">
+            <div id="view-blockchain" class="view-section hidden glass"
+                style="padding: 2rem; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                     <h3>On-Chain Transactions</h3>
                     <span class="wallet-badge">Network: Ganache (1337)</span>
                 </div>
-                
-                <div class="table-container" style="width: 100%; overflow-x: auto; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+
+                <div class="table-container"
+                    style="width: 100%; overflow-x: auto; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
                     <table style="width: 100%; border-collapse: collapse; text-align: center;">
                         <thead>
                             <tr>
-                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Round</th>
-                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Client ID</th>
-                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Timestamp</th>
-                                <th style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">Model Hash & Block Hash</th>
+                                <th
+                                    style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">
+                                    Round</th>
+                                <th
+                                    style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">
+                                    Client ID</th>
+                                <th
+                                    style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">
+                                    Timestamp</th>
+                                <th
+                                    style="padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(99, 102, 241, 0.1); color: #818cf8; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;">
+                                    Model Hash & Block Hash</th>
                             </tr>
                         </thead>
                         <tbody id="logs-body">
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 2rem; color: #9ca3af;">Fetching securely from blockchain...</td>
+                                <td colspan="6" style="text-align: center; padding: 2rem; color: #9ca3af;">Fetching
+                                    securely from blockchain...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -188,10 +236,48 @@
             <div id="view-attack" class="view-section hidden glass" style="padding: 2.5rem;">
                 <div style="margin-bottom: 2rem;">
                     <h3 style="color: #fff; margin-bottom: 0.5rem;">Threat Intelligence Report</h3>
-                    <p style="color: #9ca3af; margin-top: 0;">Monitoring federated node behavior for model inversion, poisoning, and Byzantine faults.</p>
+                    <p style="color: #9ca3af; margin-top: 0;">Monitoring federated node behavior for model inversion,
+                        poisoning, and Byzantine faults.</p>
                 </div>
                 <div id="audit-content">
-                    <div style="text-align: center; padding: 2rem; color: #9ca3af;">Analyzing federation telemetry...</div>
+                    <div style="text-align: center; padding: 2rem; color: #9ca3af;">Analyzing federation telemetry...
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: VISUAL ANALYTICS -->
+            <div id="view-analytics" class="view-section hidden glass" style="padding: 2.5rem; overflow-y: auto;">
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="color: #fff; margin-bottom: 0.5rem;">Advanced Visual Analytics</h3>
+                    <p style="color: #9ca3af; margin-top: 0;">Post-training model interpretation and classification mappings.</p>
+                </div>
+                <!-- Status placeholder before training concludes -->
+                <div id="analytics-placeholder" style="text-align: center; padding: 2rem; color: #9ca3af;">
+                    Graphs will be securely compiled and displayed upon completion of the federation cycle.
+                </div>
+                
+                <!-- Graph Grid Container -->
+                <div id="analytics-grid" class="hidden" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <!-- SHAP -->
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; text-align: center;">
+                        <h4 style="color:#d1d5db; margin-top:0;">SHAP Analysis</h4>
+                        <img id="img-shap" src="" alt="SHAP Plot" style="width: 100%; border-radius: 8px;">
+                    </div>
+                    <!-- Confusion Matrix -->
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; text-align: center;">
+                        <h4 style="color:#d1d5db; margin-top:0;">Confusion Matrix</h4>
+                        <img id="img-cm" src="" alt="Confusion Matrix" style="width: 100%; border-radius: 8px;">
+                    </div>
+                    <!-- ROC AUC -->
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; text-align: center;">
+                        <h4 style="color:#d1d5db; margin-top:0;">ROC - AUC</h4>
+                        <img id="img-roc" src="" alt="ROC AUC Curve" style="width: 100%; border-radius: 8px;">
+                    </div>
+                    <!-- Precision Recall -->
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; text-align: center;">
+                        <h4 style="color:#d1d5db; margin-top:0;">Precision-Recall Curve</h4>
+                        <img id="img-pr" src="" alt="Precision Recall" style="width: 100%; border-radius: 8px;">
+                    </div>
                 </div>
             </div>
         </main>
@@ -199,4 +285,5 @@
 
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
+
 </html>

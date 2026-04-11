@@ -211,6 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.round && data.round > 0) {
                 currentRoundEl.innerText = data.round;
             }
+            if (data.total_rounds) {
+                const totalRoundsEl = document.getElementById('total-rounds');
+                if (totalRoundsEl) totalRoundsEl.innerText = data.total_rounds;
+            }
 
             // Update Metrics Cards if we have data
             if (data.metrics && data.metrics.accuracy && data.metrics.accuracy.length > 0) {
@@ -264,6 +268,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Check if finished
             if (data.completed) {
+                // Update Analytics View
+                const analyticsPlaceholder = document.getElementById('analytics-placeholder');
+                const analyticsGrid = document.getElementById('analytics-grid');
+                if (analyticsPlaceholder && analyticsGrid) {
+                    analyticsPlaceholder.classList.add('hidden');
+                    analyticsGrid.classList.remove('hidden');
+                    
+                    const t = Date.now();
+                    document.getElementById('img-shap').src = '/static/shap_summary.png?t=' + t;
+                    document.getElementById('img-cm').src = '/static/confusion_matrix.png?t=' + t;
+                    document.getElementById('img-roc').src = '/static/roc_curve.png?t=' + t;
+                    document.getElementById('img-pr').src = '/static/pr_curve.png?t=' + t;
+                }
+
                 clearInterval(pollingInterval);
                 pollingInterval = null;
                 startBtn.disabled = false;

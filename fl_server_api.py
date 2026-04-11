@@ -21,8 +21,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from security.defense import aggregate_weights, DEFENSE_METHOD
-from server.server import detect_attack, evaluate_global_model
+from server.server import detect_attack, evaluate_global_model, build_global_model
 from blockchain.blockchain import log_update
+from evaluation.visualizations import generate_visualizations
 
 # ================================================================
 # CONFIG
@@ -73,6 +74,7 @@ def _write_metrics(status, completed=False):
             "status": status,
             "completed": completed,
             "round": state["round"],
+            "total_rounds": TOTAL_ROUNDS,
             "metrics": {k: state["metrics"][k] for k in state["metrics"]},
             "malicious_attackers": list(state["malicious"]),
             "trust_scores": dict(state["trust_scores"])
@@ -97,9 +99,9 @@ def _aggregate_round():
     # Load server validation data (safely)
     try:
         from data.data_loader import load_server_validation_data
-        server_X, server_y = load_server_validation_data("data/dataset.xlsx", "target", samples=150)
+        server_X, server_y, feature_names = load_server_validation_data("data/dataset.xlsx", "target", samples=150)
     except Exception as e:
-        server_X, server_y = None, None
+        server_X, server_y, feature_names = None, None, None
 
     from security.defense import foolsgold_scores
     
@@ -219,6 +221,17 @@ def _aggregate_round():
             # However this logs the event to the blockchain regardless.
         except Exception as e:
             _log(f"  ❌ IPFS Error: {e}")
+
+        # 🌐 GENERATE VISUAL ANALYTICS MAPS
+        try:
+            _log("  📊 Generating advanced visual analytics...")
+            if server_X is not None and server_y is not None:
+                final_model, sX, sy = build_global_model(state["global_weights"], (server_X, server_y), is_server_data=True)
+                generate_visualizations(final_model, sX, sy, output_dir="static", feature_names=feature_names)
+            else:
+                _log("  ⚠️ Missing server validation data for visualizations.")
+        except Exception as e:
+            _log(f"  ❌ Visualization error: {e}")
 
         _write_metrics("Training Completed Successfully ✅", completed=True)
         _log("\n✅ All rounds complete!")
